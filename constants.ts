@@ -1,4 +1,5 @@
 
+
 import { User, JobRequest, Proposal, Review, Category } from './types';
 
 export const CATEGORIES: { id: Category; label: string; icon: string }[] = [
@@ -58,6 +59,19 @@ export const MOCK_PRO: User = {
   bio: 'Certified Master Electrician and EV Specialist with 10+ years of experience. Expert in residential solar systems.',
   languages: ['PT', 'FR', 'EN'],
   addresses: [],
+  companyDetails: {
+    legalName: "Roberto Electric Solutions",
+    legalType: "independant",
+    vatNumber: "LU12345678",
+    rcsNumber: "A12345",
+    licenseNumber: "10023456/0",
+    licenseExpiry: "2026-12-31",
+    iban: "LU88 0011 2233 4455 66",
+    bankName: "BGL BNP Paribas",
+    plan: "Premium",
+    cardLast4: "4242",
+    cardBrand: "Visa"
+  }
 };
 
 // Jobs including past jobs for analytics

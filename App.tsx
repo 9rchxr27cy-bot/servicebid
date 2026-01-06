@@ -10,13 +10,15 @@ import { ProDashboard } from './screens/ProScreens';
 import { ChatScreen } from './screens/ChatScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { User, Proposal, JobRequest } from './types';
-import { MOCK_CLIENT, MOCK_PRO, MOCK_JOBS } from './constants';
 import { LanguageProvider } from './contexts/LanguageContext';
+import { DatabaseProvider, useDatabase } from './contexts/DatabaseContext';
 
 const AppContent: React.FC = () => {
   const [darkMode, setDarkMode] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [userJobs, setUserJobs] = useState<JobRequest[]>(MOCK_JOBS);
+  // REMOVED: const [userJobs, setUserJobs] = useState<JobRequest[]>(MOCK_JOBS); -> Now using useDatabase
+  const { users, jobs, registerUser, createJob, updateJob, loginUser, updateUser } = useDatabase();
+  
   const [screen, setScreen] = useState<'LANDING' | 'WIZARD' | 'DASHBOARD' | 'CHAT' | 'WELCOME' | 'ONBOARDING' | 'PROFILE' | 'COMPANY_CREATION'>('LANDING');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [activeProposal, setActiveProposal] = useState<Proposal | null>(null);
@@ -28,7 +30,7 @@ const AppContent: React.FC = () => {
   const [editingJob, setEditingJob] = useState<JobRequest | null>(null);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('servicebid_user');
+    const savedUser = localStorage.getItem('servicebid_current_session_user');
     if (savedUser) setCurrentUser(JSON.parse(savedUser));
     
     if (darkMode) document.documentElement.classList.add('dark');
@@ -55,7 +57,7 @@ const AppContent: React.FC = () => {
 
   const handleLogin = (user: User) => {
     setCurrentUser(user);
-    localStorage.setItem('servicebid_user', JSON.stringify(user));
+    localStorage.setItem('servicebid_current_session_user', JSON.stringify(user));
     
     // Check if there is a pending job from the wizard
     if (pendingJob) {
@@ -63,11 +65,11 @@ const AppContent: React.FC = () => {
         ...(pendingJob as JobRequest),
         id: `job-${Date.now()}`,
         clientId: user.id,
-        createdAt: 'Just now',
+        createdAt: new Date().toISOString(), // Use ISO string for realism
         status: 'OPEN',
         proposalsCount: 0
       };
-      setUserJobs(prev => [newJob, ...prev]);
+      createJob(newJob);
       setPendingJob(null);
       setScreen('DASHBOARD');
     } else {
@@ -77,7 +79,7 @@ const AppContent: React.FC = () => {
 
   const handleLogout = () => {
     setCurrentUser(null);
-    localStorage.removeItem('servicebid_user');
+    localStorage.removeItem('servicebid_current_session_user');
     setScreen('LANDING');
   };
 
@@ -99,26 +101,51 @@ const AppContent: React.FC = () => {
       setScreen('WELCOME'); // Redirect to Auth
     } else {
       if (editingJob) {
-        // UPDATE EXISTING
-        setUserJobs(prev => prev.map(job => 
-            job.id === editingJob.id ? { ...job, ...commonData } : job
-        ));
+        // UPDATE EXISTING VIA DB
+        updateJob({ ...editingJob, ...commonData });
         setEditingJob(null);
       } else {
-        // CREATE NEW
+        // CREATE NEW VIA DB
         const newJob: JobRequest = {
             ...commonData,
             id: `job-${Date.now()}`,
             clientId: currentUser.id,
             status: 'OPEN',
-            createdAt: 'Just now',
+            createdAt: new Date().toISOString(), // Use Real date
             proposalsCount: 0,
             photos: jobData.photos || []
         } as JobRequest;
-        setUserJobs(prev => [newJob, ...prev]);
+        createJob(newJob);
       }
       setScreen('DASHBOARD');
     }
+  };
+
+  // --- ACTIONS: Favorites & Blocking ---
+  const handleToggleFavorite = (targetUserId: string) => {
+      if (!currentUser) return;
+      const currentFavs = currentUser.favorites || [];
+      const newFavs = currentFavs.includes(targetUserId) 
+          ? currentFavs.filter(id => id !== targetUserId)
+          : [...currentFavs, targetUserId];
+      
+      const updatedUser = { ...currentUser, favorites: newFavs };
+      setCurrentUser(updatedUser);
+      updateUser(updatedUser); // Update in DB
+      localStorage.setItem('servicebid_current_session_user', JSON.stringify(updatedUser)); // Update Session
+  };
+
+  const handleToggleBlock = (targetUserId: string) => {
+      if (!currentUser) return;
+      const currentBlocked = currentUser.blockedUsers || [];
+      const newBlocked = currentBlocked.includes(targetUserId)
+          ? currentBlocked.filter(id => id !== targetUserId)
+          : [...currentBlocked, targetUserId];
+      
+      const updatedUser = { ...currentUser, blockedUsers: newBlocked };
+      setCurrentUser(updatedUser);
+      updateUser(updatedUser); // Update in DB
+      localStorage.setItem('servicebid_current_session_user', JSON.stringify(updatedUser)); // Update Session
   };
 
   const renderScreen = () => {
@@ -156,13 +183,14 @@ const AppContent: React.FC = () => {
           const newPro: User = {
             id: 'pro-' + Date.now(),
             name: data.fullName,
-            email: 'pro@servicebid.lu',
+            email: data.email, // Use Real Input Data
+            phone: data.phone, // Use Real Input Data
             avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.fullName}`,
             role: 'PRO',
-            isVerified: false,
+            isVerified: false, // New pros need verification
             level: 'Novice',
             xp: 0,
-            rating: 5.0,
+            rating: 5.0, // Start with 5 stars (New)
             languages: ['EN', 'FR'],
             addresses: [{
                 id: 'addr-pro',
@@ -173,8 +201,19 @@ const AppContent: React.FC = () => {
                 locality: data.locality,
                 hasElevator: false,
                 easyParking: true
-            }]
+            }],
+            companyDetails: {
+                legalName: data.companyName || data.fullName,
+                legalType: data.legalType,
+                vatNumber: data.tvaNumber,
+                rcsNumber: data.rcsNumber,
+                licenseNumber: data.licenseNum,
+                licenseExpiry: data.licenseExpiry,
+                iban: data.iban,
+                plan: data.selectedPlan
+            }
           };
+          registerUser(newPro); // Save to DB
           handleLogin(newPro);
         }} />;
       case 'COMPANY_CREATION':
@@ -182,14 +221,16 @@ const AppContent: React.FC = () => {
       case 'DASHBOARD':
         return currentUser?.role === 'CLIENT' ? (
           <ClientDashboard 
-            jobs={userJobs}
+            // Filter jobs from DB for this client
+            jobs={jobs.filter(j => j.clientId === currentUser.id)}
             onSelectProposal={(p) => {
               setActiveProposal(p);
               setScreen('CHAT');
             }}
-            onCreateNew={() => setScreen('LANDING')} // FIX: Go to Landing/Categories
+            onCreateNew={() => setScreen('LANDING')} 
             onViewProfile={() => setScreen('PROFILE')}
-            onEdit={handleEditRequest} 
+            onEdit={handleEditRequest}
+            favorites={currentUser.favorites} 
           />
         ) : (
           <ProDashboard 
@@ -208,6 +249,11 @@ const AppContent: React.FC = () => {
             onBack={() => setScreen('DASHBOARD')}
             currentUserRole={currentUser?.role || 'CLIENT'}
             onComplete={() => setScreen('DASHBOARD')}
+            // Pass logic functions to ChatScreen to pass to Modal
+            onToggleFavorite={handleToggleFavorite}
+            onToggleBlock={handleToggleBlock}
+            isFavorited={currentUser?.favorites?.includes(activeProposal.proId)}
+            isBlocked={currentUser?.blockedUsers?.includes(activeProposal.proId)}
           />
         ) : null;
       case 'PROFILE':
@@ -218,7 +264,8 @@ const AppContent: React.FC = () => {
             onUpdate={(data) => {
               const updated = { ...currentUser, ...data };
               setCurrentUser(updated);
-              localStorage.setItem('servicebid_user', JSON.stringify(updated));
+              updateUser(updated); // Sync DB
+              localStorage.setItem('servicebid_current_session_user', JSON.stringify(updated));
             }}
           />
         ) : null;
@@ -239,24 +286,31 @@ const AppContent: React.FC = () => {
       authModalOpen={authModalOpen}
       setAuthModalOpen={setAuthModalOpen}
       onLogin={(userKey, pass) => {
-        const lowerKey = userKey.toLowerCase();
-        
-        if (lowerKey.includes('roberto') || lowerKey.includes('pro')) {
-          handleLogin(MOCK_PRO);
-        } else if (lowerKey === 'alice.j@email.lu') {
-           handleLogin(MOCK_CLIENT);
+        // REAL DB LOGIN
+        const user = loginUser(userKey, pass);
+        if (user) {
+            handleLogin(user);
         } else {
-           const newUser: User = {
-             id: `client-${Date.now()}`,
-             name: userKey.split('@')[0],
-             email: userKey,
-             avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${userKey}`,
-             role: 'CLIENT',
-             languages: ['EN'],
-             addresses: [],
-             twoFactorEnabled: false
-           };
-           handleLogin(newUser);
+            // Fallback for Demo hardcoded users if not in DB (safety net)
+            // But prefer creating new user if not found in real app
+            const lowerKey = userKey.toLowerCase();
+            if (lowerKey.includes('alice')) handleLogin(users.find(u => u.role === 'CLIENT')!);
+            else if (lowerKey.includes('roberto')) handleLogin(users.find(u => u.role === 'PRO')!);
+            else {
+               // Create temp user if not found (Demo convenience)
+               const newUser: User = {
+                 id: `client-${Date.now()}`,
+                 name: userKey.split('@')[0],
+                 email: userKey,
+                 avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${userKey}`,
+                 role: 'CLIENT',
+                 languages: ['EN'],
+                 addresses: [],
+                 twoFactorEnabled: false
+               };
+               registerUser(newUser);
+               handleLogin(newUser);
+            }
         }
       }}
       onSignUpClick={() => setScreen('WELCOME')}
@@ -278,9 +332,11 @@ const AppContent: React.FC = () => {
 };
 
 const App: React.FC = () => (
-  <LanguageProvider>
-    <AppContent />
-  </LanguageProvider>
+  <DatabaseProvider>
+    <LanguageProvider>
+        <AppContent />
+    </LanguageProvider>
+  </DatabaseProvider>
 );
 
 export default App;

@@ -61,9 +61,9 @@ export const Layout: React.FC<LayoutProps> = ({
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden z-[110]"
+          className="relative w-full max-w-md m-4 bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden z-[110]"
         >
-          <div className="p-8">
+          <div className="p-6 md:p-8">
             <button 
               onClick={() => setAuthModalOpen(false)}
               className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
@@ -221,7 +221,7 @@ export const Layout: React.FC<LayoutProps> = ({
   return (
     <div className={darkMode ? 'dark' : ''}>
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans selection:bg-emerald-100 selection:text-emerald-900">
-        <nav className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 sm:px-8 py-3 flex items-center justify-between">
+        <nav className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 md:px-8 py-3 flex items-center justify-between">
           <div 
             className="flex items-center gap-2 cursor-pointer group"
             onClick={onLogoClick}
@@ -229,15 +229,15 @@ export const Layout: React.FC<LayoutProps> = ({
             <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20 group-active:scale-90 transition-transform">
               <ShieldCheck className="text-white w-6 h-6" />
             </div>
-            <span className="text-xl font-black uppercase tracking-tighter hidden sm:block">ServiceBid<span className="text-emerald-500">.lu</span></span>
+            <span className="text-xl font-black uppercase tracking-tighter block">ServiceBid<span className="text-emerald-500">.lu</span></span>
           </div>
 
-          <div className="flex items-center gap-3 sm:gap-6">
+          <div className="flex items-center gap-2 sm:gap-6">
             {/* Language Selector */}
             <div className="relative">
               <button 
                 onClick={() => setIsLangOpen(!isLangOpen)}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="flex items-center gap-2 px-2 sm:px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               >
                 <span className="text-lg">{currentLangObj.flag}</span>
                 <ChevronDown size={14} className={`text-slate-400 transition-transform ${isLangOpen ? 'rotate-180' : ''}`} />
@@ -282,9 +282,9 @@ export const Layout: React.FC<LayoutProps> = ({
               <div className="relative">
                 <button 
                   onClick={() => setIsUserOpen(!isUserOpen)}
-                  className="flex items-center gap-3 p-1 pr-3 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 hover:shadow-md transition-all group"
+                  className="flex items-center gap-2 sm:gap-3 p-1 pr-3 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 hover:shadow-md transition-all group"
                 >
-                  <img src={user.avatar} className="w-9 h-9 rounded-xl border border-slate-100 dark:border-slate-700" alt={user.name} />
+                  <img src={user.avatar} className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-slate-100 dark:border-slate-700" alt={user.name} />
                   <span className="text-sm font-bold hidden sm:block">{user.name}</span>
                   <ChevronDown size={14} className={`text-slate-400 transition-transform group-hover:text-slate-600 ${isUserOpen ? 'rotate-180' : ''}`} />
                 </button>
@@ -326,7 +326,7 @@ export const Layout: React.FC<LayoutProps> = ({
             ) : (
               <Button 
                 onClick={() => setAuthModalOpen(true)}
-                className="h-11 px-6 rounded-xl font-bold text-sm shadow-lg shadow-emerald-500/20"
+                className="h-10 sm:h-11 px-4 sm:px-6 rounded-xl font-bold text-sm shadow-lg shadow-emerald-500/20 whitespace-nowrap"
               >
                 {t.signIn}
               </Button>

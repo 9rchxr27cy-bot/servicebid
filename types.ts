@@ -33,6 +33,35 @@ export interface Address {
   additionalInfo?: string;
 }
 
+export type AutoReplyTemplate = 'AGILITY' | 'DATA' | 'CUSTOM';
+
+export interface AutoReplyConfig {
+  enabled: boolean;
+  delay: number; // 0 (immediate), 5 (minutes), 15 (minutes)
+  template: AutoReplyTemplate;
+  customMessage?: string;
+}
+
+export interface CompanyDetails {
+  legalName: string; // Nome da Empresa ou do Independente
+  legalType: 'independant' | 'sarl-s' | 'sarl' | 'sa';
+  rcsNumber?: string; // Registro de Comércio (Ex: B123456)
+  vatNumber: string; // TVA (Ex: LU12345678)
+  licenseNumber: string; // Autorização de Estabelecimento
+  licenseExpiry: string; // Data
+  iban: string;
+  bic?: string; // Bank Identifier Code
+  bankName?: string;
+  // Billing Fields
+  plan?: 'Basic' | 'Premium';
+  cardLast4?: string;
+  cardBrand?: string;
+  // Business Hours
+  openingTime?: string; // "09:00"
+  closingTime?: string; // "18:00"
+  workingDays?: string[]; // Array of days e.g. ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+}
+
 export interface User {
   id: string;
   name: string;
@@ -43,6 +72,8 @@ export interface User {
   phone?: string;
   languages: LanguageCode[];
   addresses: Address[];
+  companyDetails?: CompanyDetails; // New Field
+  autoReplyConfig?: AutoReplyConfig; // NEW: Smart Reply Settings
   isVerified?: boolean;
   level?: 'Novice' | 'Professional' | 'Expert' | 'Master';
   xp?: number;
@@ -51,6 +82,9 @@ export interface User {
   joinedDate?: string;
   bio?: string;
   twoFactorEnabled?: boolean;
+  // User Preferences
+  favorites?: string[]; // Array of User IDs
+  blockedUsers?: string[]; // Array of User IDs
 }
 
 export interface Review {
@@ -69,7 +103,9 @@ export type JobStatus =
   | 'EN_ROUTE'    // A caminho
   | 'ARRIVED'     // Chegou no local
   | 'IN_PROGRESS' // Trabalho iniciado
-  | 'COMPLETED'   // Finalizado
+  | 'REVIEW_PENDING' // Pro terminou, aguardando Cliente confirmar
+  | 'PAYMENT_PENDING' // Cliente confirmou, aguardando Pro confirmar pgto
+  | 'COMPLETED'   // Finalizado e pago
   | 'CANCELLED';
 
 export interface JobRequest {
@@ -115,13 +151,48 @@ export interface OfferDetails {
   status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
 }
 
+// LUXEMBOURG INVOICE MODEL
+export interface InvoiceItem {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  vatRate: number; // 17, 3, etc.
+  total: number;
+}
+
+export interface Invoice {
+  id: string; // Format: YYYY-XXXX
+  date: string;
+  dueDate: string;
+  issuer: CompanyDetails & { address: string };
+  client: { name: string; address: string; vatNumber?: string };
+  items: InvoiceItem[];
+  subtotalHT: number; // Hors Taxe
+  totalVAT: number;   // TVA
+  totalTTC: number;   // Toutes Taxes Comprises
+  status: 'PAID' | 'PENDING' | 'OVERDUE';
+  language: 'FR' | 'EN' | 'DE';
+}
+
+export interface Transaction {
+  id: string;
+  date: string;
+  description: string;
+  amount: number;
+  type: 'CREDIT' | 'DEBIT'; // Credit = Income, Debit = Platform Fee
+  status: 'COMPLETED' | 'PENDING';
+  invoiceId?: string;
+  jobId?: string;
+}
+
 export interface ChatMessage {
   id: string;
   senderId: string;
   text?: string; // Optional now, used for text messages
   timestamp: string;
   isSystem?: boolean;
-  type: 'text' | 'image' | 'offer_update' | 'receipt'; 
+  isAutoReply?: boolean; // NEW: Distinguish bot messages
+  type: 'text' | 'image' | 'offer_update' | 'receipt' | 'invoice'; // Added 'invoice'
   offerDetails?: OfferDetails; 
   receiptDetails?: {
     startTime: string;
@@ -129,4 +200,5 @@ export interface ChatMessage {
     duration: string;
     totalAmount: number;
   };
+  invoiceDetails?: Invoice; // Added for official invoice
 }
