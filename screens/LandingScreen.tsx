@@ -1,16 +1,18 @@
 
 import React, { useState, useMemo } from 'react';
-import { Search, Star, ShieldCheck, Clock, Wrench, Zap, Droplets, Flower2, Laptop, Truck, Scissors, Dog, Paintbrush, Bike, Sun, Sparkles, Building2, ChevronRight } from 'lucide-react';
+import { Search, Star, ShieldCheck, Clock, Wrench, Zap, Droplets, Flower2, Laptop, Truck, Scissors, Dog, Paintbrush, Bike, Sun, Sparkles, Building2, ChevronRight, Grid, Hammer, Home, Thermometer, Lock, Bug, Layout } from 'lucide-react';
 import { CATEGORIES } from '../constants';
-import { Card } from '../components/ui';
+import { Card, Button } from '../components/ui';
 import { useLanguage } from '../contexts/LanguageContext';
 
 interface LandingProps {
   onSelectCategory: (cat: string) => void;
   onRegisterPro: () => void;
   onOpenCompanyHelp?: () => void;
+  onViewAllServices: () => void; // New Prop
 }
 
+// Map icons for the top popular categories
 const ICON_MAP: Record<string, any> = {
   Sparkles: <Sparkles />,
   Zap: <Zap />,
@@ -24,20 +26,31 @@ const ICON_MAP: Record<string, any> = {
   Truck: <Truck />,
   Scissors: <Scissors />,
   Dog: <Dog />,
+  Hammer: <Hammer />,
+  Home: <Home />,
+  Thermometer: <Thermometer />,
+  Lock: <Lock />,
+  Bug: <Bug />,
+  Layout: <Layout />
 };
 
-export const LandingScreen: React.FC<LandingProps> = ({ onSelectCategory, onRegisterPro, onOpenCompanyHelp }) => {
+export const LandingScreen: React.FC<LandingProps> = ({ onSelectCategory, onRegisterPro, onOpenCompanyHelp, onViewAllServices }) => {
   const { t, tCategory } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredCategories = useMemo(() => {
-    if (!searchTerm.trim()) return CATEGORIES;
+    // 1. If Searching: Search through ALL categories (40+)
+    if (searchTerm.trim()) {
+      const search = searchTerm.toLowerCase();
+      return CATEGORIES.filter(cat => {
+        const translatedName = tCategory(cat.id).toLowerCase();
+        const originalName = cat.label.toLowerCase(); // Search in English too
+        return translatedName.includes(search) || originalName.includes(search);
+      });
+    }
     
-    const search = searchTerm.toLowerCase();
-    return CATEGORIES.filter(cat => {
-      const translatedName = tCategory(cat.id).toLowerCase();
-      return translatedName.includes(search);
-    });
+    // 2. If NOT Searching (Default View): Show only Top 10 Popular
+    return CATEGORIES.slice(0, 10);
   }, [searchTerm, tCategory]);
 
   return (
@@ -98,24 +111,40 @@ export const LandingScreen: React.FC<LandingProps> = ({ onSelectCategory, onRegi
         </div>
         
         {filteredCategories.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-            {filteredCategories.map((cat) => (
-              <Card 
-                key={cat.id} 
-                onClick={() => onSelectCategory(cat.id)}
-                className="group hover:border-emerald-500 dark:hover:border-emerald-500 transition-all duration-300 active:scale-95 flex flex-col items-center justify-center p-4 md:p-8 gap-3 md:gap-4 bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 min-h-[140px] md:min-h-[180px]"
-              >
-                <div className="w-12 h-12 md:w-16 md:h-16 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-slate-400 group-hover:bg-emerald-500 group-hover:text-white transition-all transform group-hover:scale-110">
-                  <span className="text-2xl md:text-3xl">
-                    {ICON_MAP[cat.icon] || <Zap />}
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+              {filteredCategories.map((cat) => (
+                <Card 
+                  key={cat.id} 
+                  onClick={() => onSelectCategory(cat.id)}
+                  className="group hover:border-emerald-500 dark:hover:border-emerald-500 transition-all duration-300 active:scale-95 flex flex-col items-center justify-center p-4 md:p-8 gap-3 md:gap-4 bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 min-h-[140px] md:min-h-[180px]"
+                >
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-slate-400 group-hover:bg-emerald-500 group-hover:text-white transition-all transform group-hover:scale-110">
+                    <span className="text-2xl md:text-3xl">
+                      {ICON_MAP[cat.icon] || <Zap />}
+                    </span>
+                  </div>
+                  <span className="font-black text-slate-800 dark:text-slate-200 text-center text-[10px] md:text-xs uppercase tracking-widest leading-tight">
+                    {tCategory(cat.id)}
                   </span>
+                </Card>
+              ))}
+            </div>
+            
+            {/* View All Button - Positioned immediately after grid ONLY if not searching */}
+            {!searchTerm && (
+                <div className="flex justify-center mt-8">
+                    <Button 
+                        variant="outline" 
+                        onClick={onViewAllServices}
+                        className="rounded-full px-8 py-4 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-emerald-500 hover:text-emerald-500 transition-colors bg-white dark:bg-slate-900 shadow-sm"
+                    >
+                        <Grid size={18} className="mr-2" />
+                        {t.viewAllServices}
+                    </Button>
                 </div>
-                <span className="font-black text-slate-800 dark:text-slate-200 text-center text-[10px] md:text-xs uppercase tracking-widest leading-tight">
-                  {tCategory(cat.id)}
-                </span>
-              </Card>
-            ))}
-          </div>
+            )}
+          </>
         ) : (
           <div className="py-20 text-center space-y-4">
             <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto">

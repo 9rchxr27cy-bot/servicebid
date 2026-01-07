@@ -539,7 +539,7 @@ export const ProOnboarding: React.FC<{ onComplete: (data: any) => void }> = ({ o
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-slate-500">{t.summaryPlan}</span>
                     <span className={`text-sm font-bold ${formData.selectedPlan === 'premium' ? 'text-amber-500' : 'text-slate-900'}`}>
-                        {formData.selectedPlan === 'premium' ? 'PREMIUM (Founder)' : 'BASIC'}
+                        {formData.selectedPlan === 'premium' ? t.premiumPlan : t.basicPlan}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">

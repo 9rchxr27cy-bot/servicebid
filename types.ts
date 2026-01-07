@@ -1,20 +1,8 @@
 
 export type Role = 'CLIENT' | 'PRO' | null;
 
-export type Category = 
-  | 'Cleaning' 
-  | 'Electrician' 
-  | 'Plumbing' 
-  | 'Gardening' 
-  | 'IT Support' 
-  | 'Moving' 
-  | 'Beauty' 
-  | 'Pet Sitter'
-  | 'Mechanic'
-  | 'ElectricVehicle'
-  | 'AutoBody'
-  | 'Micromobility'
-  | 'SolarEnergy';
+// Changed to string to support the expanded catalog easily
+export type Category = string;
 
 export type LanguageCode = 'LB' | 'FR' | 'DE' | 'EN' | 'PT';
 

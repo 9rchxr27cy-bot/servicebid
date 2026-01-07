@@ -398,19 +398,70 @@ export const ChatScreen: React.FC<ChatProps> = ({
   const InvoiceBubble: React.FC<{ msg: ChatMessage }> = ({ msg }) => {
       if (!msg.invoiceDetails) return null;
       const inv = msg.invoiceDetails;
+      // Translation hook is already available in the parent, but we use keys from context.
+      // Since this is inside ChatScreen which has useLanguage, we can assume parent's context is fine,
+      // but t isn't passed down. We can use the parent 't' by defining this component inside ChatScreen or passing props.
+      // Since it's defined inside ChatScreen, it has access to 't'.
+      
       return (
-          <div className="w-full max-w-[85%] mx-auto my-4 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden relative">
-             <div className="bg-slate-900 dark:bg-slate-950 p-4 flex items-center justify-center gap-2">
-                 <CheckCircle className="text-emerald-500" />
-                 <span className="text-white font-bold uppercase tracking-widest">{t.invoiceNo} {inv.id}</span>
-             </div>
-             <div className="p-6 space-y-4 pt-8">
-                 <div className="text-center">
-                     <p className="text-slate-400 text-xs uppercase font-bold tracking-widest">{inv.issuer.legalName}</p>
-                     <p className="text-emerald-500 text-3xl font-black mt-2">€ {inv.totalTTC.toFixed(2)}</p>
-                     <p className="text-slate-400 text-[10px] uppercase font-bold">{t.amountTTC}</p>
+          <div className="w-full max-w-[95%] sm:max-w-[90%] mx-auto my-6 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+             {/* Header */}
+             <div className="bg-slate-900 p-4 flex justify-between items-center text-white">
+                 <div className="flex items-center gap-2">
+                     <FileText size={18} className="text-emerald-400" />
+                     <span className="font-bold tracking-wider text-sm">{t.invoiceNo} {inv.id}</span>
                  </div>
-                 <Button onClick={() => downloadInvoicePDF(inv)} className="w-full mt-4 bg-slate-100 hover:bg-slate-200 text-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-white border-none shadow-none">
+                 <span className="text-[10px] opacity-70 font-mono">{new Date(inv.date).toLocaleDateString()}</span>
+             </div>
+
+             {/* Content */}
+             <div className="p-5">
+                 {/* Issuer & Client Info (Condensed) */}
+                 <div className="flex justify-between text-xs mb-6 text-slate-500">
+                     <div>
+                         <span className="font-bold block text-slate-900 dark:text-white">{inv.issuer.legalName}</span>
+                         <span>{inv.issuer.vatNumber}</span>
+                     </div>
+                     <div className="text-right">
+                         <span className="block text-[10px] uppercase tracking-wider mb-0.5">{t.invBillTo}</span>
+                         <span className="font-bold text-slate-900 dark:text-white">{inv.client.name}</span>
+                     </div>
+                 </div>
+
+                 {/* Line Items */}
+                 <div className="space-y-3 mb-6">
+                     {inv.items.map((item, i) => (
+                         <div key={i} className="flex justify-between text-sm border-b border-slate-100 dark:border-slate-800 pb-2">
+                             <div className="flex-1">
+                                 <span className="font-medium text-slate-800 dark:text-slate-200">{item.description}</span>
+                                 <div className="text-[10px] text-slate-400">Qty: {item.quantity} × €{item.unitPrice.toFixed(2)}</div>
+                             </div>
+                             <span className="font-mono font-bold text-slate-900 dark:text-white">€ {item.total.toFixed(2)}</span>
+                         </div>
+                     ))}
+                 </div>
+
+                 {/* Totals Section */}
+                 <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl space-y-2">
+                     <div className="flex justify-between text-xs text-slate-500">
+                         <span>{t.invSubtotal}</span>
+                         <span className="font-mono">€ {inv.subtotalHT.toFixed(2)}</span>
+                     </div>
+                     <div className="flex justify-between text-xs text-slate-500">
+                         <span>{t.invVatAmt} ({inv.items[0]?.vatRate || 17}%)</span>
+                         <span className="font-mono">€ {inv.totalVAT.toFixed(2)}</span>
+                     </div>
+                     <div className="border-t border-slate-200 dark:border-slate-700 pt-2 mt-2 flex justify-between text-base font-black text-emerald-600 dark:text-emerald-400">
+                         <span>{t.invTotalDue}</span>
+                         <span>€ {inv.totalTTC.toFixed(2)}</span>
+                     </div>
+                 </div>
+
+                 {/* Action */}
+                 <Button
+                     onClick={() => downloadInvoicePDF(inv)}
+                     className="w-full mt-5 bg-slate-900 dark:bg-white dark:text-slate-900 text-white hover:bg-slate-800 shadow-none border-none h-12"
+                 >
                      <Download size={18} className="mr-2" /> {t.downloadPdf}
                  </Button>
              </div>
@@ -572,7 +623,7 @@ export const ChatScreen: React.FC<ChatProps> = ({
           <>
             {/* PRO WORKFLOW BUTTONS */}
             {/* Logic: Show controls if PRO AND (Not Negotiating OR Payment Pending is handled elsewhere OR Review Pending is valid) OR (Confirmed but might be Open in legacy) */}
-            {currentUserRole === 'PRO' && (jobStatus !== 'NEGOTIATING' && jobStatus !== 'PAYMENT_PENDING' && jobStatus !== 'OPEN' || jobStatus === 'REVIEW_PENDING' || jobStatus === 'CONFIRMED') && (
+            {currentUserRole === 'PRO' && (jobStatus !== 'NEGOTIATING' && jobStatus !== 'PAYMENT_PENDING' && jobStatus !== 'OPEN') && (
                 <div className="px-4 py-2 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
                     <WorkflowControls />
                 </div>

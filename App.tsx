@@ -9,6 +9,7 @@ import { ClientDashboard } from './screens/ClientScreens';
 import { ProDashboard } from './screens/ProScreens';
 import { ChatScreen } from './screens/ChatScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
+import { AllServicesScreen } from './screens/AllServicesScreen';
 import { User, Proposal, JobRequest } from './types';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { DatabaseProvider, useDatabase } from './contexts/DatabaseContext';
@@ -19,7 +20,7 @@ const AppContent: React.FC = () => {
   // REMOVED: const [userJobs, setUserJobs] = useState<JobRequest[]>(MOCK_JOBS); -> Now using useDatabase
   const { users, jobs, registerUser, createJob, updateJob, loginUser, updateUser } = useDatabase();
   
-  const [screen, setScreen] = useState<'LANDING' | 'WIZARD' | 'DASHBOARD' | 'CHAT' | 'WELCOME' | 'ONBOARDING' | 'PROFILE' | 'COMPANY_CREATION'>('LANDING');
+  const [screen, setScreen] = useState<'LANDING' | 'WIZARD' | 'DASHBOARD' | 'CHAT' | 'WELCOME' | 'ONBOARDING' | 'PROFILE' | 'COMPANY_CREATION' | 'ALL_CATEGORIES'>('LANDING');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [activeProposal, setActiveProposal] = useState<Proposal | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -156,7 +157,15 @@ const AppContent: React.FC = () => {
             onSelectCategory={handleStartWizard} 
             onRegisterPro={() => setScreen('WELCOME')}
             onOpenCompanyHelp={() => setScreen('COMPANY_CREATION')}
+            onViewAllServices={() => setScreen('ALL_CATEGORIES')}
           />
+        );
+      case 'ALL_CATEGORIES':
+        return (
+            <AllServicesScreen 
+                onBack={() => setScreen('LANDING')}
+                onSelectCategory={handleStartWizard}
+            />
         );
       case 'WIZARD':
         return (
@@ -270,7 +279,12 @@ const AppContent: React.FC = () => {
           />
         ) : null;
       default:
-        return <LandingScreen onSelectCategory={handleStartWizard} onRegisterPro={() => setScreen('WELCOME')} onOpenCompanyHelp={() => setScreen('COMPANY_CREATION')} />;
+        return <LandingScreen 
+            onSelectCategory={handleStartWizard} 
+            onRegisterPro={() => setScreen('WELCOME')} 
+            onOpenCompanyHelp={() => setScreen('COMPANY_CREATION')}
+            onViewAllServices={() => setScreen('ALL_CATEGORIES')}
+        />;
     }
   };
 

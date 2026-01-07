@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -932,13 +933,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user, onBack, onUp
               </motion.div>
             )}
           </AnimatePresence>
-
-          {activeTab !== 'chat_settings' && activeTab !== 'website' && (
             <div className="pt-10 flex items-center justify-between border-t border-slate-200 dark:border-slate-800">
                 <p className="text-xs text-slate-400 max-w-[200px] italic">Vos données sont stockées conformément au RGPD luxembourgeois.</p>
                 <Button type="submit" isLoading={isSaving} className="px-10 h-14 text-lg">{t.saveChanges}</Button>
             </div>
-          )}
         </form>
         )}
         </AnimatePresence>
