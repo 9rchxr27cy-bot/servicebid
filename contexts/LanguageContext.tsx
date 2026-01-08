@@ -199,6 +199,24 @@ const enTranslations = {
     revenueTrend: "Revenue Trend",
     averageValue: "Avg Ticket",
     
+    // NEW FINANCIAL KEYS
+    addExternalService: "Add External Service",
+    externalServiceDef: "External Service",
+    selectCategory: "Select Category",
+    addTransaction: "Add Transaction",
+    methodCash: "Cash",
+    methodCard: "Card",
+    methodTransfer: "Bank Transfer",
+    filterAll: "All",
+    methodColumn: "Method",
+    actionColumn: "Action",
+    provisionTax: "Provision for future tax payment",
+    monthlyAgg: "Monthly Aggregation",
+    dailyBreak: "Daily Breakdown",
+    expandRange: "Try selecting a wider date range.",
+    upgradeTitle: "Upgrade to PRO",
+    upgradeText: "Unlock full financial dashboard and export tools.",
+    
     // CHAT & WORKFLOW
     serviceAgreed: "Service agreed at",
     chatStarted: "Chat started.",
@@ -396,6 +414,7 @@ const enTranslations = {
 
 // --- FRENCH (Default) ---
 const frTranslations: typeof enTranslations = {
+    ...enTranslations,
     signIn: "Se connecter",
     welcomeSubtitle: "Bienvenue sur ServiceBid",
     imClient: "Je suis Client",
@@ -575,6 +594,24 @@ const frTranslations: typeof enTranslations = {
     revenueTrend: "Tendance Revenus",
     averageValue: "Panier Moyen",
     
+    // NEW FINANCIAL KEYS
+    addExternalService: "Ajouter Service Externe",
+    externalServiceDef: "Service Externe",
+    selectCategory: "Choisir Catégorie",
+    addTransaction: "Ajouter Transaction",
+    methodCash: "Espèces",
+    methodCard: "Carte",
+    methodTransfer: "Virement",
+    filterAll: "Tous",
+    methodColumn: "Méthode",
+    actionColumn: "Action",
+    provisionTax: "Provision pour impôts futurs",
+    monthlyAgg: "Agrégation Mensuelle",
+    dailyBreak: "Détail Journalier",
+    expandRange: "Essayez une plage de dates plus large.",
+    upgradeTitle: "Passer Pro",
+    upgradeText: "Débloquez le tableau de bord financier complet.",
+
     serviceAgreed: "Service convenu à",
     chatStarted: "Discussion démarrée.",
     msgOnWay: "Je suis en route.",
@@ -767,6 +804,7 @@ const frTranslations: typeof enTranslations = {
 
 // --- PORTUGUESE (Brazil) ---
 const ptTranslations: typeof enTranslations = {
+    ...enTranslations,
     signIn: "Entrar",
     welcomeSubtitle: "Bem-vindo de volta ao ServiceBid",
     imClient: "Sou Cliente",
@@ -946,6 +984,24 @@ const ptTranslations: typeof enTranslations = {
     revenueTrend: "Tendência de Receita",
     averageValue: "Ticket Médio",
     
+    // NEW FINANCIAL KEYS
+    addExternalService: "Adicionar Serviço Externo",
+    externalServiceDef: "Serviço Externo",
+    selectCategory: "Selecionar Categoria",
+    addTransaction: "Adicionar Transação",
+    methodCash: "Dinheiro",
+    methodCard: "Cartão",
+    methodTransfer: "Transferência",
+    filterAll: "Todos",
+    methodColumn: "Método",
+    actionColumn: "Ação",
+    provisionTax: "Provisão para impostos futuros",
+    monthlyAgg: "Agregação Mensal",
+    dailyBreak: "Detalhamento Diário",
+    expandRange: "Tente selecionar um período maior.",
+    upgradeTitle: "Mudar para Pro",
+    upgradeText: "Desbloqueie o painel financeiro completo.",
+
     serviceAgreed: "Serviço acordado por",
     chatStarted: "Chat iniciado.",
     msgOnWay: "Estou a caminho.",
@@ -1138,6 +1194,7 @@ const ptTranslations: typeof enTranslations = {
 
 // --- GERMAN ---
 const deTranslations: typeof enTranslations = {
+    ...enTranslations,
     signIn: "Anmelden",
     welcomeSubtitle: "Willkommen zurück bei ServiceBid",
     imClient: "Ich bin Kunde",
@@ -1317,6 +1374,24 @@ const deTranslations: typeof enTranslations = {
     revenueTrend: "Umsatztrend",
     averageValue: "Durchschn. Ticket",
     
+    // NEW FINANCIAL KEYS
+    addExternalService: "Externen Service hinzufügen",
+    externalServiceDef: "Externer Service",
+    selectCategory: "Kategorie wählen",
+    addTransaction: "Transaktion hinzufügen",
+    methodCash: "Bar",
+    methodCard: "Karte",
+    methodTransfer: "Überweisung",
+    filterAll: "Alle",
+    methodColumn: "Methode",
+    actionColumn: "Aktion",
+    provisionTax: "Rückstellung für zukünftige Steuern",
+    monthlyAgg: "Monatliche Zusammenfassung",
+    dailyBreak: "Tägliche Aufschlüsselung",
+    expandRange: "Versuchen Sie einen größeren Datumsbereich.",
+    upgradeTitle: "Upgrade auf Pro",
+    upgradeText: "Schalten Sie das volle Finanz-Dashboard frei.",
+
     serviceAgreed: "Service vereinbart für",
     chatStarted: "Chat gestartet.",
     msgOnWay: "Ich bin auf dem Weg.",
@@ -1509,6 +1584,7 @@ const deTranslations: typeof enTranslations = {
 
 // --- LUXEMBOURGISH ---
 const lbTranslations: typeof enTranslations = {
+    ...enTranslations,
     signIn: "Aloggen",
     welcomeSubtitle: "Wëllkomm zréck bei ServiceBid",
     imClient: "Ech si Client",
@@ -1688,6 +1764,24 @@ const lbTranslations: typeof enTranslations = {
     revenueTrend: "Akommes Trend",
     averageValue: "Duerchschn. Ticket",
     
+    // NEW FINANCIAL KEYS
+    addExternalService: "Externe Service dobäisetzen",
+    externalServiceDef: "Externe Service",
+    selectCategory: "Kategorie wielen",
+    addTransaction: "Transaktioun dobäisetzen",
+    methodCash: "Boer",
+    methodCard: "Kaart",
+    methodTransfer: "Iwwerweisung",
+    filterAll: "All",
+    methodColumn: "Method",
+    actionColumn: "Aktioun",
+    provisionTax: "Provisioun fir zukünfteg Steieren",
+    monthlyAgg: "Monatlech Zesummefaassung",
+    dailyBreak: "Deeglechen Detail",
+    expandRange: "Probéiert e méi groussen Datumsberäich.",
+    upgradeTitle: "Upgrade op Pro",
+    upgradeText: "Schalt de kompletten Finanz-Dashboard fräi.",
+
     serviceAgreed: "Service ausgemaach fir",
     chatStarted: "Chat gestart.",
     msgOnWay: "Ech sinn um Wee.",

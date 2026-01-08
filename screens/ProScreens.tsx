@@ -1,9 +1,9 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Euro, Send, X, TrendingUp, Calendar, CheckCircle2, DollarSign, LayoutDashboard, Briefcase, BarChart3, MessageSquare, History, ChevronRight, Clock, Check, Download, FileText, Lock, Crown, ArrowUpRight, Printer, Eye, ChevronDown } from 'lucide-react';
+import { MapPin, Euro, Send, X, TrendingUp, Calendar, CheckCircle2, DollarSign, LayoutDashboard, Briefcase, BarChart3, MessageSquare, History, ChevronRight, Clock, Check, Download, FileText, Lock, Crown, ArrowUpRight, Printer, Eye, ChevronDown, AlertCircle, Plus, CreditCard, Banknote, Landmark, Filter, ShieldCheck, User as UserIcon } from 'lucide-react';
 import { Button, Input, Card, LevelBadge } from '../components/ui';
-import { MOCK_PRO } from '../constants';
+import { MOCK_PRO, CATEGORIES } from '../constants';
 import { JobRequest, Proposal, Invoice } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { createInvoiceObject, downloadInvoicePDF, calculateInvoiceTotals, downloadFiscalReport } from '../utils/pdfGenerator';
@@ -18,6 +18,11 @@ interface ProScreensProps {
 // ... (InvoicePreviewModal remains the same) ...
 const InvoicePreviewModal: React.FC<{ invoice: Invoice; onClose: () => void }> = ({ invoice, onClose }) => {
     const { t } = useLanguage();
+
+    const paymentLabel = invoice.paymentMethod === 'CARD' ? 'Carte Bancaire' 
+                         : invoice.paymentMethod === 'TRANSFER' ? 'Virement Bancaire' 
+                         : invoice.paymentMethod === 'CASH' ? 'Espèces'
+                         : 'N/A';
 
     return (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
@@ -38,7 +43,7 @@ const InvoicePreviewModal: React.FC<{ invoice: Invoice; onClose: () => void }> =
                 <div className="bg-slate-900 text-white p-4 flex justify-between items-center shrink-0">
                     <h3 className="font-bold flex items-center gap-2 text-sm md:text-base">
                         <FileText size={18} /> 
-                        Invoice #{invoice.id}
+                        {t.invoiceNo} #{invoice.id}
                     </h3>
                     <div className="flex gap-2">
                         <Button size="sm" variant="ghost" className="text-white hover:bg-white/20 hidden md:flex" onClick={() => window.print()}>
@@ -131,6 +136,10 @@ const InvoicePreviewModal: React.FC<{ invoice: Invoice; onClose: () => void }> =
                                     <span>{t.invTotalDue}</span>
                                     <span>€ {invoice.totalTTC.toFixed(2)}</span>
                                 </div>
+                                <div className="flex justify-between text-xs text-slate-400 mt-2">
+                                    <span>{t.paymentMethod}</span>
+                                    <span className="font-bold uppercase">{paymentLabel}</span>
+                                </div>
                             </div>
                         </div>
 
@@ -150,8 +159,8 @@ const InvoicePreviewModal: React.FC<{ invoice: Invoice; onClose: () => void }> =
 
 // --- FINANCIAL DASHBOARD (ERP Light) ---
 const ProAnalytics: React.FC = () => {
-    const { t } = useLanguage();
-    const { jobs } = useDatabase(); // Use DB
+    const { t, tCategory } = useLanguage();
+    const { jobs, users, createJob } = useDatabase(); // Use DB
     // FORCE Premium for Demo Purposes
     const isPremium = true; 
 
@@ -164,6 +173,20 @@ const ProAnalytics: React.FC = () => {
     const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
     const [preset, setPreset] = useState<'TODAY' | 'WEEK' | 'MONTH' | 'YEAR'>('MONTH');
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+    
+    // NEW: Payment Method Filter
+    const [paymentFilter, setPaymentFilter] = useState<'ALL' | 'CASH' | 'CARD' | 'TRANSFER'>('ALL');
+    
+    // NEW: External Job Modal State
+    const [showExternalJobModal, setShowExternalJobModal] = useState(false);
+    const [extJobData, setExtJobData] = useState({
+        clientName: '',
+        category: '',
+        description: '',
+        price: '',
+        date: new Date().toISOString().split('T')[0],
+        paymentMethod: 'CASH' as 'CASH' | 'CARD' | 'TRANSFER'
+    });
 
     // Filter Logic using REAL DB JOBS (that are completed)
     const filteredJobs = useMemo(() => {
@@ -173,21 +196,39 @@ const ProAnalytics: React.FC = () => {
 
         return jobs.filter(j => {
             if (j.status !== 'COMPLETED' || !j.finishedAt) return false;
+            
             const jobDate = new Date(j.finishedAt);
-            return jobDate >= start && jobDate <= end;
+            const dateInRange = jobDate >= start && jobDate <= end;
+            
+            // Payment Filter Logic
+            // FIX: Handle legacy jobs where paymentMethod might be undefined by defaulting to 'CASH'
+            // This aligns with the visual UI which shows the Banknote icon for undefined methods.
+            const jobMethod = j.paymentMethod || 'CASH';
+            const methodMatch = paymentFilter === 'ALL' || jobMethod === paymentFilter;
+
+            return dateInRange && methodMatch;
         }).sort((a, b) => new Date(b.finishedAt!).getTime() - new Date(a.finishedAt!).getTime());
-    }, [startDate, endDate, jobs]);
+    }, [startDate, endDate, jobs, paymentFilter]);
 
     // Financial Totals based on Filter
     const totals = useMemo(() => {
+        // 1. Gross Revenue (Total Value of Completed Jobs)
         const gross = filteredJobs.reduce((acc, j) => acc + (j.finalPrice || 0), 0);
-        const vat = gross * 0.17;
-        // Mock pending calculation: if job finished within last 3 days
+        
+        // 2. VAT Liability (Informational Provision)
+        // Calculated on Total Revenue as a future liability estimate.
+        const vat = gross * 0.17; 
+
+        // 3. Pending Revenue (Funds not yet cleared, e.g., job completed < 3 days ago)
+        // Note: We might assume EXTERNAL jobs are settled immediately if cash, but let's keep consistent rule.
         const pending = filteredJobs.filter(j => {
             const daysAgo = (Date.now() - new Date(j.finishedAt!).getTime()) / (1000 * 60 * 60 * 24);
             return daysAgo < 3;
         }).reduce((acc, j) => acc + (j.finalPrice || 0), 0);
-        const available = gross - vat - pending; // Simplified logic
+        
+        // 4. Available Balance Calculation
+        // Available = Total Revenue - Pending Revenue. 
+        const available = Math.max(0, gross - pending); 
 
         return { gross, vat, pending, available, count: filteredJobs.length };
     }, [filteredJobs]);
@@ -254,14 +295,67 @@ const ProAnalytics: React.FC = () => {
     const maxChartValue = Math.max(...chartData.map(d => d.value), 100);
 
     const handleViewInvoice = (job: JobRequest) => {
-        const inv = createInvoiceObject(MOCK_PRO, "Client", job, job.finalPrice || 0);
+        // Resolve Real Client Name OR Use External Name
+        let clientName = t.client;
+        if (job.isExternal && job.externalClientName) {
+            clientName = job.externalClientName;
+        } else {
+            const clientUser = users.find(u => u.id === job.clientId);
+            if (clientUser) clientName = `${clientUser.name} ${clientUser.surname || ''}`.trim();
+        }
+
+        const inv = createInvoiceObject(MOCK_PRO, clientName, job, job.finalPrice || 0);
         setSelectedInvoice(inv);
     };
 
     const handleDownloadInvoiceDirect = (job: JobRequest, e: React.MouseEvent) => {
         e.stopPropagation();
-        const inv = createInvoiceObject(MOCK_PRO, "Client", job, job.finalPrice || 0);
+        let clientName = t.client;
+        if (job.isExternal && job.externalClientName) {
+            clientName = job.externalClientName;
+        } else {
+            const clientUser = users.find(u => u.id === job.clientId);
+            if (clientUser) clientName = `${clientUser.name} ${clientUser.surname || ''}`.trim();
+        }
+
+        const inv = createInvoiceObject(MOCK_PRO, clientName, job, job.finalPrice || 0);
         downloadInvoicePDF(inv);
+    };
+
+    const handleAddExternalJob = () => {
+        if (!extJobData.clientName || !extJobData.price || !extJobData.category) return;
+
+        const newJob: JobRequest = {
+            id: `ext-${Date.now()}`,
+            clientId: 'external', // Placeholder
+            category: extJobData.category,
+            description: extJobData.description || t.externalServiceDef,
+            title: extJobData.description || t.externalServiceDef,
+            photos: [],
+            location: 'Client Location', // Could be added to form
+            urgency: 'SPECIFIC_DATE',
+            status: 'COMPLETED',
+            createdAt: new Date(extJobData.date).toISOString(),
+            finishedAt: new Date(extJobData.date).toISOString(),
+            suggestedPrice: parseFloat(extJobData.price),
+            finalPrice: parseFloat(extJobData.price),
+            paymentMethod: extJobData.paymentMethod,
+            isExternal: true,
+            externalClientName: extJobData.clientName,
+            proposalsCount: 1
+        };
+
+        createJob(newJob);
+        setShowExternalJobModal(false);
+        // Reset form
+        setExtJobData({
+            clientName: '',
+            category: '',
+            description: '',
+            price: '',
+            date: new Date().toISOString().split('T')[0],
+            paymentMethod: 'CASH'
+        });
     };
 
     return (
@@ -275,19 +369,28 @@ const ProAnalytics: React.FC = () => {
                     </h2>
                     <p className="text-slate-500 text-sm mt-1">{t.customRange}</p>
                 </div>
-                <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={() => downloadFiscalReport(new Date().getFullYear())}
-                    className="border-slate-200 hover:bg-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 w-full md:w-auto"
-                >
-                    <Download size={16} className="mr-2" /> {t.exportReport}
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                    <Button 
+                        size="sm" 
+                        onClick={() => setShowExternalJobModal(true)}
+                        className="bg-slate-900 dark:bg-white dark:text-slate-900 text-white w-full sm:w-auto shadow-lg"
+                    >
+                        <Plus size={16} className="mr-2" /> {t.addExternalService}
+                    </Button>
+                    <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => downloadFiscalReport(new Date().getFullYear())}
+                        className="border-slate-200 hover:bg-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 w-full sm:w-auto"
+                    >
+                        <Download size={16} className="mr-2" /> {t.exportReport}
+                    </Button>
+                </div>
             </div>
 
             {/* ADVANCED FILTER BAR */}
             <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col xl:flex-row gap-4 justify-between items-center relative z-20">
-                {/* Presets */}
+                {/* Date Presets */}
                 <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-full xl:w-auto overflow-x-auto no-scrollbar">
                     {(['TODAY', 'WEEK', 'MONTH', 'YEAR'] as const).map((p) => (
                         <button
@@ -304,26 +407,52 @@ const ProAnalytics: React.FC = () => {
                     ))}
                 </div>
 
-                {/* Date Inputs */}
-                <div className="flex items-center gap-2 w-full xl:w-auto">
-                    <div className="relative flex-1 xl:flex-none group w-full">
-                        <span className="absolute top-1 left-2 text-[8px] font-bold text-slate-400 uppercase tracking-wider">{t.startDate}</span>
-                        <input 
-                            type="date" 
-                            value={startDate}
-                            onChange={(e) => { setStartDate(e.target.value); setPreset('MONTH'); /* clear preset visual */ }}
-                            className="pt-4 pb-1 px-3 w-full xl:w-32 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        />
+                <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
+                    {/* Payment Method Filter */}
+                    <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-full sm:w-auto overflow-x-auto no-scrollbar">
+                        {[
+                            { id: 'ALL', icon: Filter, label: t.filterAll },
+                            { id: 'CASH', icon: Banknote, label: t.methodCash },
+                            { id: 'CARD', icon: CreditCard, label: t.methodCard },
+                            { id: 'TRANSFER', icon: Landmark, label: t.methodTransfer }
+                        ].map((pm) => (
+                            <button
+                                key={pm.id}
+                                onClick={() => setPaymentFilter(pm.id as any)}
+                                className={`flex-1 sm:flex-none px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                                    paymentFilter === pm.id 
+                                    ? 'bg-white dark:bg-slate-900 text-emerald-600 shadow-sm ring-1 ring-black/5 dark:ring-white/10' 
+                                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                                }`}
+                                title={pm.label}
+                            >
+                                <pm.icon size={14} />
+                                <span className="hidden sm:inline">{pm.label}</span>
+                            </button>
+                        ))}
                     </div>
-                    <span className="text-slate-300">-</span>
-                    <div className="relative flex-1 xl:flex-none group w-full">
-                        <span className="absolute top-1 left-2 text-[8px] font-bold text-slate-400 uppercase tracking-wider">{t.endDate}</span>
-                        <input 
-                            type="date" 
-                            value={endDate}
-                            onChange={(e) => { setEndDate(e.target.value); setPreset('MONTH'); }}
-                            className="pt-4 pb-1 px-3 w-full xl:w-32 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        />
+
+                    {/* Date Inputs */}
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <div className="relative flex-1 sm:flex-none group w-full">
+                            <span className="absolute top-1 left-2 text-[8px] font-bold text-slate-400 uppercase tracking-wider">{t.startDate}</span>
+                            <input 
+                                type="date" 
+                                value={startDate}
+                                onChange={(e) => { setStartDate(e.target.value); setPreset('MONTH'); /* clear preset visual */ }}
+                                className="pt-4 pb-1 px-3 w-full sm:w-32 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            />
+                        </div>
+                        <span className="text-slate-300">-</span>
+                        <div className="relative flex-1 sm:flex-none group w-full">
+                            <span className="absolute top-1 left-2 text-[8px] font-bold text-slate-400 uppercase tracking-wider">{t.endDate}</span>
+                            <input 
+                                type="date" 
+                                value={endDate}
+                                onChange={(e) => { setEndDate(e.target.value); setPreset('MONTH'); }}
+                                className="pt-4 pb-1 px-3 w-full sm:w-32 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -354,9 +483,12 @@ const ProAnalytics: React.FC = () => {
                     <p className="text-xl md:text-2xl font-black text-emerald-500">€ {totals.gross.toFixed(2)}</p>
                 </Card>
 
-                <Card className="p-4 md:p-5 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
+                <Card className="p-4 md:p-5 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700" title={t.provisionTax}>
                     <div className="flex justify-between items-start mb-2">
-                        <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">{t.vatEstimate}</p>
+                        <div className="flex flex-col">
+                            <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">{t.vatEstimate}</p>
+                            <span className="text-[9px] text-slate-400 font-medium">(Provision)</span>
+                        </div>
                         <div className="p-1.5 bg-purple-100 dark:bg-purple-900/30 rounded-lg"><FileText size={14} className="text-purple-500" /></div>
                     </div>
                     <p className="text-xl md:text-2xl font-black text-slate-900 dark:text-white">€ {totals.vat.toFixed(2)}</p>
@@ -371,7 +503,7 @@ const ProAnalytics: React.FC = () => {
                             <BarChart3 size={16} className="text-emerald-500" /> {t.revenueTrend}
                         </h3>
                         <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-                            {chartData.length > 31 ? 'Monthly Aggregation' : 'Daily Breakdown'}
+                            {chartData.length > 31 ? t.monthlyAgg : t.dailyBreak}
                         </p>
                     </div>
                     <div className="flex items-center gap-4">
@@ -416,29 +548,56 @@ const ProAnalytics: React.FC = () => {
                             <thead className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
                                 <tr>
                                     <th className="px-4 md:px-6 py-4">{t.invoiceNo}</th>
-                                    <th className="px-4 md:px-6 py-4">Date</th>
+                                    <th className="px-4 md:px-6 py-4">{t.startDate}</th>
                                     <th className="px-4 md:px-6 py-4 hidden md:table-cell">{t.client}</th>
                                     <th className="px-4 md:px-6 py-4">{t.service}</th>
+                                    {/* NEW COLUMN: METHOD */}
+                                    <th className="px-4 md:px-6 py-4 text-center">{t.methodColumn}</th>
                                     <th className="px-4 md:px-6 py-4 text-right hidden md:table-cell">{t.amountHT}</th>
                                     <th className="px-4 md:px-6 py-4 text-right hidden md:table-cell">TVA</th>
                                     <th className="px-4 md:px-6 py-4 text-right">{t.amountTTC}</th>
-                                    <th className="px-4 md:px-6 py-4 text-center">Action</th>
+                                    <th className="px-4 md:px-6 py-4 text-center">{t.actionColumn}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                                 {filteredJobs.map(job => {
                                     const totals = calculateInvoiceTotals(job.finalPrice || 0);
                                     const dateObj = new Date(job.finishedAt!);
+                                    // Resolve Client Name
+                                    let clientDisplayName = "Client";
+                                    if (job.isExternal && job.externalClientName) {
+                                        clientDisplayName = job.externalClientName;
+                                    } else {
+                                        const clientUser = users.find(u => u.id === job.clientId);
+                                        if (clientUser) clientDisplayName = clientUser.name;
+                                    }
+
                                     return (
                                         <tr key={job.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer" onClick={() => handleViewInvoice(job)}>
-                                            <td className="px-4 md:px-6 py-4 font-mono text-xs text-slate-400">#{job.id.slice(-6)}</td>
+                                            <td className="px-4 md:px-6 py-4 font-mono text-xs text-slate-400">
+                                                #{job.id.startsWith('ext') ? 'EXT' : ''}{job.id.slice(-6)}
+                                            </td>
                                             <td className="px-4 md:px-6 py-4 text-slate-500 text-xs">
                                                 {dateObj.toLocaleDateString()} <span className="text-slate-300 ml-1 hidden sm:inline">{dateObj.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
                                             </td>
                                             <td className="px-4 md:px-6 py-4 font-bold text-slate-900 dark:text-white hidden md:table-cell">
-                                                Client
+                                                {clientDisplayName} {job.isExternal && <span className="text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-700 px-1 rounded ml-1">EXT</span>}
                                             </td>
-                                            <td className="px-4 md:px-6 py-4 text-slate-500">{job.category}</td>
+                                            <td className="px-4 md:px-6 py-4 text-slate-500">{job.title || job.description}</td>
+                                            
+                                            {/* Payment Method Cell */}
+                                            <td className="px-4 md:px-6 py-4 text-center">
+                                                <div className="flex justify-center" title={job.paymentMethod}>
+                                                    {job.paymentMethod === 'CARD' ? (
+                                                        <div className="p-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-md"><CreditCard size={14} /></div>
+                                                    ) : job.paymentMethod === 'TRANSFER' ? (
+                                                        <div className="p-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 rounded-md"><Landmark size={14} /></div>
+                                                    ) : (
+                                                        <div className="p-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-md"><Banknote size={14} /></div>
+                                                    )}
+                                                </div>
+                                            </td>
+
                                             <td className="px-4 md:px-6 py-4 text-right font-mono text-slate-500 hidden md:table-cell">€ {totals.subtotalHT.toFixed(2)}</td>
                                             <td className="px-4 md:px-6 py-4 text-right font-mono text-slate-400 text-xs hidden md:table-cell">€ {totals.totalVAT.toFixed(2)}</td>
                                             <td className="px-4 md:px-6 py-4 text-right font-black text-emerald-600 dark:text-emerald-400">€ {totals.totalTTC.toFixed(2)}</td>
@@ -469,7 +628,7 @@ const ProAnalytics: React.FC = () => {
                                     <Calendar size={24} className="text-slate-400" />
                                 </div>
                                 <p className="text-slate-500 font-medium">{t.noJobsPeriod}</p>
-                                <p className="text-xs text-slate-400 mt-1">Try selecting a wider date range.</p>
+                                <p className="text-xs text-slate-400 mt-1">{t.expandRange}</p>
                             </div>
                         )}
                     </div>
@@ -483,15 +642,112 @@ const ProAnalytics: React.FC = () => {
                 )}
             </AnimatePresence>
 
+            {/* EXTERNAL JOB MODAL */}
+            <AnimatePresence>
+                {showExternalJobModal && (
+                    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+                        <motion.div 
+                            initial={{ opacity: 0 }} 
+                            animate={{ opacity: 1 }} 
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm"
+                            onClick={() => setShowExternalJobModal(false)}
+                        />
+                        <motion.div 
+                            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-6 z-30"
+                        >
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-black text-slate-900 dark:text-white">{t.addExternalService}</h3>
+                                <button onClick={() => setShowExternalJobModal(false)} className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"><X size={20}/></button>
+                            </div>
+                            
+                            <div className="space-y-4">
+                                <Input 
+                                    label={t.client}
+                                    placeholder="e.g. John Doe"
+                                    value={extJobData.clientName}
+                                    onChange={e => setExtJobData({...extJobData, clientName: e.target.value})}
+                                />
+                                
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t.selectCategory}</label>
+                                    <select 
+                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                                        value={extJobData.category}
+                                        onChange={e => setExtJobData({...extJobData, category: e.target.value})}
+                                    >
+                                        <option value="">{t.selectCategory}</option>
+                                        {CATEGORIES.map(cat => <option key={cat.id} value={cat.id}>{cat.label}</option>)}
+                                    </select>
+                                </div>
+
+                                <Input 
+                                    label={t.invDesc}
+                                    placeholder={t.externalServiceDef}
+                                    value={extJobData.description}
+                                    onChange={e => setExtJobData({...extJobData, description: e.target.value})}
+                                />
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <Input 
+                                        label={t.budgetLabel + " (€)"}
+                                        type="number"
+                                        placeholder="0.00"
+                                        value={extJobData.price}
+                                        onChange={e => setExtJobData({...extJobData, price: e.target.value})}
+                                    />
+                                    <Input 
+                                        label={t.startDate} // "Date" key reused
+                                        type="date"
+                                        value={extJobData.date}
+                                        onChange={e => setExtJobData({...extJobData, date: e.target.value})}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t.paymentMethod}</label>
+                                    <div className="grid grid-cols-3 gap-3">
+                                        {(['CASH', 'CARD', 'TRANSFER'] as const).map(m => (
+                                            <button 
+                                                key={m}
+                                                onClick={() => setExtJobData({...extJobData, paymentMethod: m})}
+                                                className={`py-2 rounded-xl text-xs font-bold border-2 transition-all ${
+                                                    extJobData.paymentMethod === m 
+                                                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700' 
+                                                    : 'border-slate-200 dark:border-slate-700 text-slate-500'
+                                                }`}
+                                            >
+                                                {m === 'CASH' ? t.methodCash : m === 'CARD' ? t.methodCard : t.methodTransfer}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <Button 
+                                    className="w-full mt-4 h-12 text-lg font-bold"
+                                    disabled={!extJobData.clientName || !extJobData.price || !extJobData.category}
+                                    onClick={handleAddExternalJob}
+                                >
+                                    {t.addTransaction}
+                                </Button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
             {/* UPSELL LOCK OVERLAY (If not Premium) */}
             {!isPremium && (
                 <div className="absolute inset-0 z-50 backdrop-blur-md bg-white/30 dark:bg-slate-950/30 flex flex-col items-center justify-center text-center p-6 rounded-3xl border border-white/20">
                     <div className="bg-slate-900 text-white p-4 rounded-2xl mb-4 shadow-2xl">
                         <Lock size={32} />
                     </div>
-                    <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-2">{t.upgradePro}</h3>
+                    <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-2">{t.upgradeTitle}</h3>
                     <p className="text-slate-600 dark:text-slate-300 max-w-sm mb-6 font-medium">
-                        {t.upgradeDesc}
+                        {t.upgradeText}
                     </p>
                     <Button className="h-12 px-8 font-bold bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white border-none shadow-lg shadow-orange-500/20">
                         <Crown size={18} className="mr-2" /> {t.upgradeNow}
@@ -504,21 +760,22 @@ const ProAnalytics: React.FC = () => {
 
 const ProMessagesList: React.FC<{ onSelect: (p: Proposal) => void }> = ({ onSelect }) => {
     const { t } = useLanguage();
-    const { proposals, jobs } = useDatabase(); // Use DB proposals
+    const { proposals, jobs, users } = useDatabase(); // Use DB proposals
 
     // Filter relevant chats: Proposals where I am the pro, and the job is active
-    // For demo simplicity, we show proposals that have a status or job is not open
     const activeChats = proposals.filter(p => {
-        // Here we'd normally check p.proId === currentUserId, but for simplicity assuming global scope for now
-        // or filtered in parent.
-        // Assuming we are seeing chats relevant to 'ME' (The logged in Pro)
-        // In ProScreens parent, we will filter. Here we just map what's passed or fetch relevant.
         const job = jobs.find(j => j.id === p.jobId);
         return job && (p.status === 'CONFIRMED' || job.status !== 'OPEN');
-    }).map(p => ({
-        ...p,
-        message: p.message || t.chatStarted // Ensure message
-    }));
+    }).map(p => {
+        // Resolve Client Name for List View
+        const job = jobs.find(j => j.id === p.jobId);
+        const client = users.find(u => u.id === job?.clientId);
+        return {
+            ...p,
+            clientName: client ? client.name : t.client,
+            message: p.message || t.chatStarted // Ensure message
+        };
+    });
 
     if (activeChats.length === 0) {
         return (
@@ -543,7 +800,7 @@ const ProMessagesList: React.FC<{ onSelect: (p: Proposal) => void }> = ({ onSele
                     </div>
                     <div className="flex-1">
                         <div className="flex justify-between">
-                            <h4 className="font-bold text-slate-900 dark:text-white">Client</h4>
+                            <h4 className="font-bold text-slate-900 dark:text-white">{chat.clientName}</h4>
                             <span className="text-xs text-slate-400">Now</span>
                         </div>
                         <p className="text-sm text-slate-500 truncate group-hover:text-emerald-500 transition-colors">{chat.message}</p>
@@ -750,8 +1007,20 @@ export const ProDashboard: React.FC<ProScreensProps> = ({ onViewProfile, onBid, 
                                     <Clock size={10} /> {new Date(job.createdAt).toLocaleTimeString()}
                                 </span>
                             </div>
-                            <h3 className="font-bold mb-2">{job.description}</h3>
-                            <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400">
+                            
+                            {/* UPDATED: Show Title if available */}
+                            <div className="mb-2">
+                                {job.title && (
+                                    <h3 className="font-bold text-base mb-1 text-slate-900 dark:text-white leading-tight">
+                                        {job.title}
+                                    </h3>
+                                )}
+                                <p className={`text-sm text-slate-600 dark:text-slate-400 ${job.title ? 'line-clamp-2' : 'font-bold'}`}>
+                                    {job.description}
+                                </p>
+                            </div>
+
+                            <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
                                 <div className="flex items-center gap-1">
                                     <MapPin className="w-4 h-4" />
                                     {job.distance || '5 km'}
@@ -777,38 +1046,78 @@ export const ProDashboard: React.FC<ProScreensProps> = ({ onViewProfile, onBid, 
                 initial={{ y: '100%' }}
                 animate={{ y: 0 }}
                 exit={{ y: '100%' }}
-                className="bg-white dark:bg-slate-900 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 relative z-10 shadow-2xl"
+                className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-6 relative z-10 shadow-2xl max-h-[90vh] overflow-y-auto"
              >
                 <button onClick={() => setSelectedJob(null)} className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600">
                     <X className="w-6 h-6" />
                 </button>
 
-                <h3 className="text-xl font-bold mb-1">{tCategory(selectedJob.category)}</h3>
-                <p className="text-slate-500 text-sm mb-6">{selectedJob.location} • {selectedJob.distance || 'Near'}</p>
+                {/* Job Detail Header */}
+                <div className="flex items-start justify-between gap-4 mb-4 pr-8">
+                    <div>
+                        <span className="inline-block px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-xs font-bold uppercase text-slate-600 dark:text-slate-300 mb-2">
+                            {tCategory(selectedJob.category)}
+                        </span>
+                        {/* FULL TITLE HERE */}
+                        {selectedJob.title && (
+                            <h3 className="text-xl font-black text-slate-900 dark:text-white leading-tight mb-1">
+                                {selectedJob.title}
+                            </h3>
+                        )}
+                    </div>
+                    {/* Urgency / Date Badge */}
+                    <div className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase whitespace-nowrap shadow-sm border ${
+                        selectedJob.urgency === 'URGENT' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-blue-50 text-blue-600 border-blue-100'
+                    }`}>
+                        {selectedJob.urgency === 'SPECIFIC_DATE' && selectedJob.scheduledDate 
+                            ? new Date(selectedJob.scheduledDate).toLocaleDateString() 
+                            : selectedJob.urgency === 'URGENT' ? t.urgencyAsap : 
+                              selectedJob.urgency === 'THIS_WEEK' ? t.urgencyThisWeek : 
+                              selectedJob.urgency === 'PLANNING' ? t.urgencyPlanning : selectedJob.urgency
+                        }
+                    </div>
+                </div>
 
-                <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl mb-6">
-                    <p className="text-sm italic text-slate-700 dark:text-slate-300">"{selectedJob.description}"</p>
+                <p className="text-slate-500 text-xs font-bold flex items-center gap-1 mb-6">
+                    <MapPin size={14} className="text-emerald-500" /> {selectedJob.location} • {selectedJob.distance || 'Near'}
+                </p>
+
+                {/* Description Box */}
+                <div className="bg-slate-50 dark:bg-slate-800 p-5 rounded-2xl mb-6 border border-slate-100 dark:border-slate-700">
+                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">{t.detailsLabel}</h4>
+                    <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
+                        "{selectedJob.description}"
+                    </p>
+                    
+                    {/* Photos */}
                     {selectedJob.photos.length > 0 && (
-                        <div className="mt-3 flex gap-2 overflow-x-auto">
-                            {selectedJob.photos.map((p, i) => (
-                                <img key={i} src={p} className="w-16 h-16 rounded-lg object-cover" alt="job" />
-                            ))}
+                        <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">{t.photosOptional}</h4>
+                            <div className="flex gap-2 overflow-x-auto pb-2">
+                                {selectedJob.photos.map((p, i) => (
+                                    <img key={i} src={p} className="w-20 h-20 rounded-xl object-cover border border-slate-200 dark:border-slate-600 hover:scale-105 transition-transform cursor-pointer" alt="job evidence" />
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>
 
+                {/* Offer Input Area */}
                 <div className="space-y-4">
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">{t.yourOffer} (€)</label>
+                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">{t.yourOffer} (€)</label>
                     <div className="flex gap-4 flex-col sm:flex-row">
-                        <Input 
-                            type="number" 
-                            value={bidAmount} 
-                            onChange={(e) => setBidAmount(e.target.value)}
-                            className="text-lg font-bold"
-                        />
-                        {/* Changed Button to trigger Chat immediately with CONFIRMED status */}
+                        <div className="relative w-full sm:w-1/3">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-slate-400">€</span>
+                            <Input 
+                                type="number" 
+                                value={bidAmount} 
+                                onChange={(e) => setBidAmount(e.target.value)}
+                                className="pl-8 text-lg font-black"
+                                placeholder={selectedJob.suggestedPrice?.toString() || "0"}
+                            />
+                        </div>
                         <Button 
-                            className="flex-1 w-full bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg" 
+                            className="flex-1 w-full bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg h-12 text-base font-bold" 
                             onClick={handleAcceptAndChat}
                         >
                             <Check size={20} className="mr-2" />

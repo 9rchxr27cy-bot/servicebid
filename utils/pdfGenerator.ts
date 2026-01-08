@@ -70,7 +70,8 @@ export const createInvoiceObject = (
     totalVAT: totals.totalVAT,
     totalTTC: totals.totalTTC,
     status: 'PENDING',
-    language: 'FR' // Default legal language
+    language: 'FR', // Default legal language
+    paymentMethod: job.paymentMethod || 'CASH'
   };
 };
 
@@ -78,13 +79,11 @@ export const createInvoiceObject = (
 export const downloadInvoicePDF = (invoice: Invoice) => {
   console.log("Generating PDF for:", invoice);
   
-  // In a real implementation, we would use 'jspdf' and 'jspdf-autotable' here.
-  // const doc = new jsPDF();
-  // doc.text(`FACTURE N° ${invoice.id}`, 20, 20);
-  // ...
-  // doc.save(`invoice_${invoice.id}.pdf`);
+  const paymentLabel = invoice.paymentMethod === 'CARD' ? 'Carte Bancaire' 
+                     : invoice.paymentMethod === 'TRANSFER' ? 'Virement Bancaire' 
+                     : 'Espèces';
 
-  alert(`📥 Downloading PDF Invoice N° ${invoice.id}\n\nCompliant with Luxembourg Law\nIssuer: ${invoice.issuer.legalName}\nVAT: ${invoice.issuer.vatNumber}\nAmount: €${invoice.totalTTC}`);
+  alert(`📥 Downloading PDF Invoice N° ${invoice.id}\n\nIssuer: ${invoice.issuer.legalName}\nClient: ${invoice.client.name}\nAmount: €${invoice.totalTTC}\nMethod: ${paymentLabel}`);
 };
 
 export const downloadFiscalReport = (year: number) => {

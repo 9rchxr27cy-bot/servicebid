@@ -236,7 +236,7 @@ const AppContent: React.FC = () => {
               setActiveProposal(p);
               setScreen('CHAT');
             }}
-            onCreateNew={() => setScreen('LANDING')} 
+            onCreateNew={() => setScreen('ALL_CATEGORIES')} 
             onViewProfile={() => setScreen('PROFILE')}
             onEdit={handleEditRequest}
             favorites={currentUser.favorites} 

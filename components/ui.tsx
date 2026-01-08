@@ -74,7 +74,11 @@ export const Input: React.FC<InputProps> = ({ label, error, className, ...props 
   );
 };
 
-export const Card: React.FC<{ children: React.ReactNode; className?: string; onClick?: () => void }> = ({ children, className, onClick }) => (
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  children: React.ReactNode;
+}
+
+export const Card: React.FC<CardProps> = ({ children, className, onClick, ...props }) => (
   <div 
     onClick={onClick}
     className={cn(
@@ -82,6 +86,7 @@ export const Card: React.FC<{ children: React.ReactNode; className?: string; onC
       onClick && 'cursor-pointer hover:shadow-md transition-shadow',
       className
     )}
+    {...props}
   >
     {children}
   </div>

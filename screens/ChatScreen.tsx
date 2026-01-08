@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, CheckCircle, Star, ArrowLeft, Tag, X, AlertTriangle, Check, CreditCard, Car, MapPin, Play, Square, FileText, Download, RotateCcw, Lock, Bot } from 'lucide-react';
+import { Send, CheckCircle, Star, ArrowLeft, Tag, X, AlertTriangle, Check, CreditCard, Car, MapPin, Play, Square, FileText, Download, RotateCcw, Lock, Bot, Banknote, Landmark } from 'lucide-react';
 import { Button, Input, Card } from '../components/ui';
-import { Proposal, ChatMessage, JobStatus, JobRequest } from '../types';
+import { Proposal, ChatMessage, JobStatus, JobRequest, User } from '../types';
 import { UserProfileModal, PortfolioOverlay } from '../components/ServiceModals';
 import { useLanguage } from '../contexts/LanguageContext';
 import { ServiceStatusHeader } from '../components/ServiceStatusHeader';
@@ -61,6 +61,9 @@ export const ChatScreen: React.FC<ChatProps> = ({
   const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
   const [showExitGuard, setShowExitGuard] = useState(false);
   
+  // Payment Logic State
+  const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
+
   // Negotiation Logic State
   const [newOfferPrice, setNewOfferPrice] = useState('');
   const [newOfferReason, setNewOfferReason] = useState('');
@@ -68,10 +71,29 @@ export const ChatScreen: React.FC<ChatProps> = ({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // RESOLVE REAL USERS FOR HEADER & INVOICES
+  // We need the Job Object to find the Client ID
+  const job = jobs.find(j => j.id === proposal.jobId);
+  const clientUser = users.find(u => u.id === job?.clientId);
+  const proUser = users.find(u => u.id === proposal.proId);
+
+  // Determine Chat Partner Info (Real Name & Avatar)
+  const chatPartner = currentUserRole === 'CLIENT' 
+    ? { 
+        name: proUser?.name || proposal.proName, 
+        avatar: proUser?.avatar || proposal.proAvatar, 
+        role: 'PRO' as const, 
+        id: proposal.proId 
+      }
+    : { 
+        name: clientUser ? `${clientUser.name} ${clientUser.surname || ''}` : "Client", 
+        avatar: clientUser?.avatar || MOCK_CLIENT.avatar, 
+        role: 'CLIENT' as const, 
+        id: job?.clientId || 'unknown' 
+      };
+
   // --- SMART REPLY LOGIC (Pro Bot) ---
   useEffect(() => {
-      const proUser = users.find(u => u.id === proposal.proId);
-      
       if (currentUserRole === 'PRO' || !proUser || !proUser.autoReplyConfig?.enabled) return;
 
       const hasProRepliedManually = messages.some(m => m.senderId !== 'me' && m.senderId !== 'system' && !m.isAutoReply); 
@@ -115,7 +137,7 @@ export const ChatScreen: React.FC<ChatProps> = ({
           return () => clearTimeout(timer);
       }
 
-  }, [messages, currentUserRole, proposal.proId, users, t]);
+  }, [messages, currentUserRole, proposal.proId, users, t, proUser]);
 
   // --- INIT & SYNC ---
   useEffect(() => {
@@ -135,25 +157,16 @@ export const ChatScreen: React.FC<ChatProps> = ({
           setMessages(storedMsgs);
       }
 
-      const realJob = jobs.find(j => j.id === proposal.jobId);
-      if (realJob && realJob.status !== 'OPEN') {
-          setJobStatus(realJob.status);
+      if (job && job.status !== 'OPEN') {
+          setJobStatus(job.status);
       } else if (proposal.status === 'CONFIRMED') {
           setJobStatus('CONFIRMED');
       }
-  }, [proposal.id, jobs]); // Added jobs to dependency to react to external updates
+  }, [proposal.id, jobs]);
 
   const handleAddMessage = (msg: ChatMessage) => {
       setMessages(prev => [...prev, msg]);
       addChatMessage(proposal.id, msg);
-  };
-
-  // --- DETERMINE CHAT PARTNER ---
-  const chatPartner = {
-    name: currentUserRole === 'CLIENT' ? proposal.proName : "Client", 
-    avatar: currentUserRole === 'CLIENT' ? proposal.proAvatar : MOCK_CLIENT.avatar, 
-    role: currentUserRole === 'CLIENT' ? 'PRO' : 'CLIENT' as 'PRO' | 'CLIENT',
-    id: currentUserRole === 'CLIENT' ? proposal.proId : proposal.jobId 
   };
 
   // --- NAVIGATION GUARD ---
@@ -168,9 +181,8 @@ export const ChatScreen: React.FC<ChatProps> = ({
   // --- SERVICE WORKFLOW ACTIONS (PRO ONLY) ---
   const updateServiceStatus = (newStatus: JobStatus) => {
       setJobStatus(newStatus);
-      const realJob = jobs.find(j => j.id === proposal.jobId);
-      if (realJob) {
-          updateJob({ ...realJob, status: newStatus, finishedAt: newStatus === 'COMPLETED' ? new Date().toISOString() : undefined });
+      if (job) {
+          updateJob({ ...job, status: newStatus, finishedAt: newStatus === 'COMPLETED' ? new Date().toISOString() : undefined });
       }
       
       let sysMsgText = '';
@@ -182,29 +194,7 @@ export const ChatScreen: React.FC<ChatProps> = ({
       }
       
       if (newStatus === 'REVIEW_PENDING') {
-          const mockJob: JobRequest = {
-              id: proposal.jobId,
-              clientId: 'client-id',
-              category: 'Plumbing', // fallback
-              description: 'Service',
-              photos: [],
-              location: 'Luxembourg',
-              urgency: 'THIS_WEEK',
-              status: 'COMPLETED',
-              createdAt: '',
-              suggestedPrice: currentPrice,
-              finalPrice: currentPrice
-          };
-          const invoice = createInvoiceObject(MOCK_PRO, chatPartner.name, mockJob, currentPrice);
-          const invoiceMsg: ChatMessage = {
-              id: `invoice-${Date.now()}`,
-              senderId: 'system',
-              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              type: 'invoice',
-              invoiceDetails: invoice
-          };
-          handleAddMessage(invoiceMsg);
-          sysMsgText = t.invoiceGen;
+          sysMsgText = "Work marked as done. Waiting for client confirmation.";
       }
 
       if (newStatus === 'COMPLETED') {
@@ -231,8 +221,7 @@ export const ChatScreen: React.FC<ChatProps> = ({
 
   const handleSubmitRating = () => {
       setJobStatus('PAYMENT_PENDING');
-      const realJob = jobs.find(j => j.id === proposal.jobId);
-      if (realJob) updateJob({ ...realJob, status: 'PAYMENT_PENDING' });
+      if (job) updateJob({ ...job, status: 'PAYMENT_PENDING' });
       
       const sysMsg: ChatMessage = {
           id: `sys-rated-${Date.now()}`,
@@ -245,15 +234,64 @@ export const ChatScreen: React.FC<ChatProps> = ({
       handleAddMessage(sysMsg);
   };
 
-  const handleProConfirmPayment = () => {
-      updateServiceStatus('COMPLETED');
+  // --- PAYMENT CONFIRMATION FLOW (UPDATED) ---
+  const handleProConfirmPaymentClick = () => {
+      // Open Modal to select payment method
+      setShowPaymentMethodModal(true);
+  };
+
+  const finalizePayment = (method: 'CASH' | 'CARD' | 'TRANSFER') => {
+      setShowPaymentMethodModal(false);
+      setJobStatus('COMPLETED');
+      
+      // Update Job with Status AND Payment Method
+      if (job) {
+          updateJob({ 
+              ...job, 
+              status: 'COMPLETED', 
+              finishedAt: new Date().toISOString(),
+              paymentMethod: method // Save method to DB
+          });
+      }
+
+      const methodLabel = method === 'CASH' ? 'Espèces' : method === 'CARD' ? 'Carte Bancaire' : 'Virement';
+
+      // 1. System Msg: Payment Received
+      const sysMsg: ChatMessage = {
+          id: `sys-paid-${Date.now()}`,
+          senderId: 'system',
+          text: `Payment confirmed via ${methodLabel}. Job Closed.`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isSystem: true,
+          type: 'text'
+      };
+      handleAddMessage(sysMsg);
+
+      // 2. Generate Official Invoice with Real Name & Payment Method
+      // We pass the payment method to the job object mock here so invoice generator sees it immediately
+      const jobSnapshot = { ...job, paymentMethod: method } as JobRequest;
+      const invoice = createInvoiceObject(
+          proUser || MOCK_PRO, 
+          chatPartner.name, // Real Client Name
+          jobSnapshot, 
+          currentPrice
+      );
+      
+      const invoiceMsg: ChatMessage = {
+          id: `invoice-${Date.now()}`,
+          senderId: 'system',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          type: 'invoice',
+          invoiceDetails: invoice
+      };
+      handleAddMessage(invoiceMsg);
+
       onComplete(rating, review); 
   };
 
   const handleReopenChat = () => {
       setJobStatus('IN_PROGRESS'); 
-      const realJob = jobs.find(j => j.id === proposal.jobId);
-      if (realJob) updateJob({ ...realJob, status: 'IN_PROGRESS' });
+      if (job) updateJob({ ...job, status: 'IN_PROGRESS' });
 
       const sysMsg: ChatMessage = {
           id: `sys-reopen-${Date.now()}`,
@@ -317,8 +355,7 @@ export const ChatScreen: React.FC<ChatProps> = ({
         updateMessageStatus(pendingConfirmationId, 'ACCEPTED');
         if (jobStatus === 'NEGOTIATING') {
             setJobStatus('CONFIRMED');
-            const realJob = jobs.find(j => j.id === proposal.jobId);
-            if (realJob) updateJob({ ...realJob, status: 'CONFIRMED', finalPrice: msg.offerDetails.newPrice });
+            if (job) updateJob({ ...job, status: 'CONFIRMED', finalPrice: msg.offerDetails.newPrice });
         }
         const sysMsg: ChatMessage = {
             id: `sys-${Date.now()}`,
@@ -398,11 +435,11 @@ export const ChatScreen: React.FC<ChatProps> = ({
   const InvoiceBubble: React.FC<{ msg: ChatMessage }> = ({ msg }) => {
       if (!msg.invoiceDetails) return null;
       const inv = msg.invoiceDetails;
-      // Translation hook is already available in the parent, but we use keys from context.
-      // Since this is inside ChatScreen which has useLanguage, we can assume parent's context is fine,
-      // but t isn't passed down. We can use the parent 't' by defining this component inside ChatScreen or passing props.
-      // Since it's defined inside ChatScreen, it has access to 't'.
       
+      const paymentLabel = inv.paymentMethod === 'CARD' ? 'Card' 
+                         : inv.paymentMethod === 'TRANSFER' ? 'Transfer' 
+                         : 'Cash';
+
       return (
           <div className="w-full max-w-[95%] sm:max-w-[90%] mx-auto my-6 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
              {/* Header */}
@@ -455,6 +492,12 @@ export const ChatScreen: React.FC<ChatProps> = ({
                          <span>{t.invTotalDue}</span>
                          <span>€ {inv.totalTTC.toFixed(2)}</span>
                      </div>
+                     {/* Payment Method Badge */}
+                     <div className="pt-2 flex justify-end">
+                         <span className="px-2 py-1 bg-slate-200 dark:bg-slate-700 rounded text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300">
+                             Paid via {paymentLabel}
+                         </span>
+                     </div>
                  </div>
 
                  {/* Action */}
@@ -494,7 +537,7 @@ export const ChatScreen: React.FC<ChatProps> = ({
               return <div className="text-center text-xs font-bold text-slate-400 py-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 animate-pulse">{t.waitingClient}</div>;
           case 'PAYMENT_PENDING':
               // Handled by parent wrapper usually, but safe fallback
-              return <button onClick={handleProConfirmPayment} className={`${buttonBase} bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/30`}><CreditCard size={20} /> {t.confirmPayment}</button>;
+              return <button onClick={handleProConfirmPaymentClick} className={`${buttonBase} bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/30`}><CreditCard size={20} /> {t.confirmPayment}</button>;
           default: 
              return null;
       }
@@ -622,7 +665,6 @@ export const ChatScreen: React.FC<ChatProps> = ({
       ) : (
           <>
             {/* PRO WORKFLOW BUTTONS */}
-            {/* Logic: Show controls if PRO AND (Not Negotiating OR Payment Pending is handled elsewhere OR Review Pending is valid) OR (Confirmed but might be Open in legacy) */}
             {currentUserRole === 'PRO' && (jobStatus !== 'NEGOTIATING' && jobStatus !== 'PAYMENT_PENDING' && jobStatus !== 'OPEN') && (
                 <div className="px-4 py-2 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
                     <WorkflowControls />
@@ -663,8 +705,33 @@ export const ChatScreen: React.FC<ChatProps> = ({
           </>
       )}
 
-      {/* --- MODALS (Existing) --- */}
+      {/* --- MODALS --- */}
       <AnimatePresence>
+        {/* PAYMENT METHOD SELECTION MODAL */}
+        {showPaymentMethodModal && (
+            <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center p-0 sm:p-4">
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={() => setShowPaymentMethodModal(false)} />
+                <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-6 relative z-20 shadow-2xl">
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white mb-4 text-center">How did the client pay?</h3>
+                    <div className="space-y-3">
+                        <button onClick={() => finalizePayment('CASH')} className="w-full p-4 rounded-xl border-2 border-slate-100 dark:border-slate-800 hover:border-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 flex items-center gap-4 transition-all group">
+                            <div className="bg-emerald-100 text-emerald-600 p-2 rounded-lg group-hover:bg-emerald-500 group-hover:text-white transition-colors"><Banknote size={24} /></div>
+                            <span className="font-bold text-slate-700 dark:text-slate-200">Cash / Espèces</span>
+                        </button>
+                        <button onClick={() => finalizePayment('CARD')} className="w-full p-4 rounded-xl border-2 border-slate-100 dark:border-slate-800 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center gap-4 transition-all group">
+                            <div className="bg-blue-100 text-blue-600 p-2 rounded-lg group-hover:bg-blue-500 group-hover:text-white transition-colors"><CreditCard size={24} /></div>
+                            <span className="font-bold text-slate-700 dark:text-slate-200">Card / Digicash</span>
+                        </button>
+                        <button onClick={() => finalizePayment('TRANSFER')} className="w-full p-4 rounded-xl border-2 border-slate-100 dark:border-slate-800 hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 flex items-center gap-4 transition-all group">
+                            <div className="bg-purple-100 text-purple-600 p-2 rounded-lg group-hover:bg-purple-500 group-hover:text-white transition-colors"><Landmark size={24} /></div>
+                            <span className="font-bold text-slate-700 dark:text-slate-200">Bank Transfer</span>
+                        </button>
+                    </div>
+                    <button onClick={() => setShowPaymentMethodModal(false)} className="w-full mt-4 text-slate-400 font-bold text-sm">Cancel</button>
+                </motion.div>
+            </div>
+        )}
+
         {showExitGuard && (
             <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={() => setShowExitGuard(false)} />

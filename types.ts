@@ -114,6 +114,10 @@ export interface JobRequest {
   finishedAt?: string; // ISO String
   proposalsCount?: number;
   distance?: string;
+  paymentMethod?: 'CASH' | 'CARD' | 'TRANSFER'; // New Field
+  // Manual / External Job Fields
+  isExternal?: boolean; 
+  externalClientName?: string;
 }
 
 export interface Proposal {
@@ -160,6 +164,7 @@ export interface Invoice {
   totalTTC: number;   // Toutes Taxes Comprises
   status: 'PAID' | 'PENDING' | 'OVERDUE';
   language: 'FR' | 'EN' | 'DE';
+  paymentMethod?: string; // New Field to display on PDF
 }
 
 export interface Transaction {

@@ -1,24 +1,22 @@
 
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, MapPin, Camera, X, CheckCircle2, Calendar, Home, Plus, Euro, Pencil } from 'lucide-react';
-import { Button, Input, Card } from '../components/ui';
+import { motion } from 'framer-motion';
+import { ChevronLeft, MapPin, Camera, X, CheckCircle2, Calendar, Home, Plus, Euro, Pencil, Clock, FileText, DollarSign } from 'lucide-react';
+import { Button, Input } from '../components/ui';
 import { JobRequest, User } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 
 interface WizardProps {
   category: string;
   currentUser: User | null;
-  initialData?: JobRequest | null; // Prop to handle editing mode
+  initialData?: JobRequest | null;
   onComplete: (job: any) => void;
   onCancel: () => void;
 }
 
 export const WizardScreen: React.FC<WizardProps> = ({ category, currentUser, initialData, onComplete, onCancel }) => {
   const { t, tCategory } = useLanguage();
-  const [step, setStep] = useState(1);
 
-  // Initialize state directly with initialData if present (Correction for "Edit starts from zero")
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
     description: initialData?.description || '',
@@ -31,7 +29,7 @@ export const WizardScreen: React.FC<WizardProps> = ({ category, currentUser, ini
 
   const [useSavedAddress, setUseSavedAddress] = useState(!initialData);
 
-  // Draft Logic (Only if NOT editing)
+  // Draft Logic
   useEffect(() => {
     if (!initialData) {
         const saved = localStorage.getItem(`draft_job_${category}`);
@@ -42,14 +40,14 @@ export const WizardScreen: React.FC<WizardProps> = ({ category, currentUser, ini
     }
   }, [category, initialData]);
 
-  // Persist Logic (Only if NOT editing)
+  // Persist Logic
   useEffect(() => {
     if (!initialData) {
         localStorage.setItem(`draft_job_${category}`, JSON.stringify(formData));
     }
   }, [formData, category, initialData]);
 
-  // Pre-fill location logic (Only for new jobs)
+  // Pre-fill location logic
   useEffect(() => {
     if (!initialData && currentUser && currentUser.addresses.length > 0 && useSavedAddress && !formData.location) {
         const primary = currentUser.addresses[0];
@@ -57,251 +55,217 @@ export const WizardScreen: React.FC<WizardProps> = ({ category, currentUser, ini
     }
   }, [currentUser, useSavedAddress, initialData]);
 
-  const handleNext = () => setStep(s => s + 1);
-  const handleBack = () => step === 1 ? onCancel() : setStep(s => s - 1);
-
   const simulateUpload = () => {
     const mockPhoto = `https://picsum.photos/200/200?random=${formData.photos.length}`;
     setFormData({ ...formData, photos: [...formData.photos, mockPhoto] });
   };
 
-  const steps = [
-    { title: t.whatNeed, sub: t.describeProblem },
-    { title: t.whereWhen, sub: t.defineLocation },
-    { title: t.photosOptional, sub: t.helpPro }
-  ];
+  const isFormValid = formData.title.length > 3 && formData.description.length > 5;
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-slate-950">
-      {/* Header / Progress */}
-      <header className="p-4 border-b dark:border-slate-800">
-        <div className="flex items-center justify-between mb-4">
-          <button onClick={handleBack} className="p-2 -ml-2 text-slate-500"><ChevronLeft /></button>
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950">
+      {/* Simple Header */}
+      <header className="px-4 py-4 bg-white dark:bg-slate-900 border-b dark:border-slate-800 sticky top-0 z-10 shadow-sm">
+        <div className="flex items-center justify-between max-w-lg mx-auto w-full">
+          <button onClick={onCancel} className="p-2 -ml-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+            <ChevronLeft size={24} />
+          </button>
           
-          <div className="flex flex-col items-center">
-            <span className="text-xs font-black uppercase tracking-widest text-emerald-500">
-                {t.stepXofY.replace('{x}', step.toString()).replace('{y}', '3')}
+          <div className="text-center">
+            <span className="block text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+                {tCategory(category)}
             </span>
             {initialData && (
-                <div className="flex items-center gap-1 text-[10px] text-slate-400 font-bold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full mt-1">
-                    <Pencil size={10} /> Editing: {tCategory(category)}
-                </div>
+                <span className="text-[10px] text-emerald-500 font-bold flex items-center justify-center gap-1">
+                    <Pencil size={10} /> Editing
+                </span>
             )}
           </div>
           
-          <div className="w-8" />
-        </div>
-        <div className="flex gap-2">
-          {[1,2,3].map(i => (
-            <div key={i} className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${i <= step ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-800'}`} />
-          ))}
+          <div className="w-10" /> {/* Spacer for centering */}
         </div>
       </header>
 
-      <main className="flex-1 p-6">
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold">{steps[step-1].title}</h2>
-          <p className="text-slate-500">{steps[step-1].sub}</p>
-        </div>
-
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={step}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="space-y-6"
-          >
-            {step === 1 && (
-              <>
-                <Input 
-                  label={t.titleLabel} 
-                  placeholder={t.titlePlaceholder} 
-                  value={formData.title} 
-                  onChange={e => setFormData({...formData, title: e.target.value})}
-                />
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{t.detailsLabel}</label>
-                  <textarea 
-                    className="w-full p-4 rounded-2xl border dark:border-slate-700 dark:bg-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none h-32"
-                    placeholder={t.detailsPlaceholder}
-                    value={formData.description}
-                    onChange={e => setFormData({...formData, description: e.target.value})}
-                  />
+      {/* Main Form Content */}
+      <main className="flex-1 overflow-y-auto p-4 space-y-4 pb-32">
+        <div className="max-w-lg mx-auto space-y-4">
+            
+            {/* 1. LOCATION CARD */}
+            <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2 mb-3 text-xs font-black uppercase text-slate-400 tracking-widest">
+                    <MapPin size={14} className="text-emerald-500" /> {t.serviceLocation}
                 </div>
-              </>
-            )}
-
-            {step === 2 && (
-              <>
-                {/* ADDRESS LOGIC */}
-                <div className="space-y-3">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300 block">Address</label>
-                    
-                    {currentUser && currentUser.addresses.length > 0 ? (
-                        <div className="space-y-2">
-                            {currentUser.addresses.map((addr) => (
-                                <div 
-                                    key={addr.id}
-                                    onClick={() => {
-                                        setUseSavedAddress(true);
-                                        setFormData(prev => ({ ...prev, location: `${addr.street} ${addr.number}, ${addr.postalCode} ${addr.locality}` }));
-                                    }}
-                                    className={`p-4 rounded-2xl border-2 cursor-pointer flex items-center gap-3 transition-all ${
-                                        useSavedAddress && formData.location.includes(addr.street) 
-                                        ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' 
-                                        : 'border-slate-100 dark:border-slate-800 hover:border-slate-300'
-                                    }`}
-                                >
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${useSavedAddress && formData.location.includes(addr.street) ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                                        <Home size={14} />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-bold text-slate-900 dark:text-white">{addr.label}</p>
-                                        <p className="text-xs text-slate-500">{addr.street} {addr.number}, {addr.locality}</p>
-                                    </div>
-                                    {useSavedAddress && formData.location.includes(addr.street) && <CheckCircle2 className="ml-auto text-emerald-500" size={18} />}
-                                </div>
-                            ))}
-                            
+                
+                {currentUser && currentUser.addresses.length > 0 ? (
+                    <div className="space-y-2">
+                        {currentUser.addresses.map((addr) => (
                             <div 
+                                key={addr.id}
                                 onClick={() => {
-                                    setUseSavedAddress(false);
-                                    setFormData(prev => ({ ...prev, location: '' }));
+                                    setUseSavedAddress(true);
+                                    setFormData(prev => ({ ...prev, location: `${addr.street} ${addr.number}, ${addr.postalCode} ${addr.locality}` }));
                                 }}
-                                className={`p-4 rounded-2xl border-2 cursor-pointer flex items-center gap-3 transition-all ${
-                                    !useSavedAddress 
+                                className={`p-3 rounded-2xl border-2 cursor-pointer flex items-center gap-3 transition-all ${
+                                    useSavedAddress && formData.location.includes(addr.street) 
                                     ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' 
                                     : 'border-slate-100 dark:border-slate-800 hover:border-slate-300'
                                 }`}
                             >
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${!useSavedAddress ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                                    <Plus size={16} />
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${useSavedAddress && formData.location.includes(addr.street) ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                    <Home size={14} />
                                 </div>
-                                <span className="text-sm font-bold">New Address</span>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{addr.label}</p>
+                                    <p className="text-xs text-slate-500 truncate">{addr.street}, {addr.locality}</p>
+                                </div>
+                                {useSavedAddress && formData.location.includes(addr.street) && <CheckCircle2 className="text-emerald-500 shrink-0" size={18} />}
                             </div>
+                        ))}
+                        
+                        <div 
+                            onClick={() => {
+                                setUseSavedAddress(false);
+                                setFormData(prev => ({ ...prev, location: '' }));
+                            }}
+                            className={`p-3 rounded-2xl border-2 cursor-pointer flex items-center gap-3 transition-all ${
+                                !useSavedAddress 
+                                ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' 
+                                : 'border-slate-100 dark:border-slate-800 hover:border-slate-300'
+                            }`}
+                        >
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${!useSavedAddress ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                <Plus size={16} />
+                            </div>
+                            <span className="text-sm font-bold">Other Location</span>
                         </div>
-                    ) : null}
+                    </div>
+                ) : null}
 
-                    {(!currentUser || !useSavedAddress) && (
-                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
-                            <div className="relative">
-                                <MapPin className="absolute left-4 top-3.5 text-slate-400 w-5 h-5" />
-                                <Input 
-                                    placeholder={t.addressPlaceholder}
-                                    className="pl-12"
-                                    value={formData.location}
-                                    onChange={e => setFormData({...formData, location: e.target.value})}
-                                />
-                            </div>
-                            {!currentUser && (
-                                <p className="text-[10px] text-slate-400 mt-2 px-1">
-                                    You can save this address by creating an account in the next step.
-                                </p>
-                            )}
-                        </motion.div>
-                    )}
+                {(!currentUser || !useSavedAddress) && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-3">
+                        <Input 
+                            placeholder={t.addressPlaceholder}
+                            value={formData.location}
+                            onChange={e => setFormData({...formData, location: e.target.value})}
+                            className="bg-slate-50 dark:bg-slate-800"
+                        />
+                    </motion.div>
+                )}
+            </div>
+
+            {/* 2. DETAILS CARD */}
+            <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2 mb-4 text-xs font-black uppercase text-slate-400 tracking-widest">
+                    <FileText size={14} className="text-blue-500" /> {t.detailsLabel}
                 </div>
-                
-                {/* DATE / URGENCY LOGIC */}
-                <div className="space-y-3 mt-4">
-                  <label className="text-sm font-medium">{t.whenLabel}</label>
-                  <div className="grid grid-cols-1 gap-2">
-                    {[
-                      { id: 'URGENT', label: t.urgencyAsap, icon: '⚡' },
-                      { id: 'THIS_WEEK', label: t.urgencyThisWeek, icon: '📅' },
-                      { id: 'PLANNING', label: t.urgencyPlanning, icon: '🔍' },
-                      { id: 'SPECIFIC_DATE', label: 'Specific Date', icon: '📆' }
-                    ].map((opt) => (
-                      <button
-                        key={opt.id}
-                        onClick={() => setFormData({...formData, urgency: opt.id as any})}
-                        className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all ${formData.urgency === opt.id ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' : 'border-slate-100 dark:border-slate-800'}`}
-                      >
-                        <span className="text-xl">{opt.icon}</span>
-                        <span className="font-bold">{opt.label}</span>
-                        {opt.id === 'SPECIFIC_DATE' && formData.urgency === 'SPECIFIC_DATE' && (
-                            <Calendar className="ml-auto text-emerald-500" size={18} />
-                        )}
-                      </button>
-                    ))}
-                  </div>
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1.5 ml-1">{t.titleLabel}</label>
+                        <Input 
+                            placeholder={t.titlePlaceholder} 
+                            value={formData.title} 
+                            onChange={e => setFormData({...formData, title: e.target.value})}
+                            className="font-bold"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1.5 ml-1">{t.detailsLabel}</label>
+                        <textarea 
+                            className="w-full p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none h-28 text-sm resize-none"
+                            placeholder={t.detailsPlaceholder}
+                            value={formData.description}
+                            onChange={e => setFormData({...formData, description: e.target.value})}
+                        />
+                    </div>
+                </div>
+            </div>
 
-                  {formData.urgency === 'SPECIFIC_DATE' && (
-                      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-                          <input 
+            {/* 3. URGENCY & PHOTOS */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-2 mb-3 text-xs font-black uppercase text-slate-400 tracking-widest">
+                        <Clock size={14} className="text-amber-500" /> {t.whenLabel}
+                    </div>
+                    <select 
+                        className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+                        value={formData.urgency}
+                        onChange={(e) => setFormData({...formData, urgency: e.target.value as any})}
+                    >
+                        <option value="URGENT">{t.urgencyAsap}</option>
+                        <option value="THIS_WEEK">{t.urgencyThisWeek}</option>
+                        <option value="PLANNING">{t.urgencyPlanning}</option>
+                        <option value="SPECIFIC_DATE">Specific Date</option>
+                    </select>
+                    
+                    {formData.urgency === 'SPECIFIC_DATE' && (
+                        <input 
                             type="date" 
-                            className="w-full p-4 rounded-xl border border-emerald-200 bg-white dark:bg-slate-900 dark:border-emerald-900 font-bold text-lg"
+                            className="w-full mt-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold"
                             value={formData.scheduledDate}
                             onChange={(e) => setFormData(prev => ({ ...prev, scheduledDate: e.target.value }))}
                             min={new Date().toISOString().split('T')[0]}
-                          />
-                      </motion.div>
-                  )}
-                </div>
-              </>
-            )}
-
-            {step === 3 && (
-              <div className="space-y-6">
-                {/* BUDGET INPUT */}
-                <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{t.budgetLabel}</label>
-                    <div className="relative">
-                        <Euro className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                        <input 
-                            type="number" 
-                            className="w-full pl-12 pr-4 py-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-2xl font-bold focus:ring-2 focus:ring-emerald-500 outline-none placeholder:text-slate-300"
-                            placeholder={t.budgetPlaceholder}
-                            value={formData.suggestedPrice}
-                            onChange={(e) => setFormData({...formData, suggestedPrice: e.target.value})}
                         />
-                    </div>
-                    <p className="text-xs text-slate-500">{t.budgetHelp}</p>
+                    )}
                 </div>
 
-                <div className="h-px bg-slate-100 dark:bg-slate-800" />
-
-                <div className="grid grid-cols-3 gap-3">
-                  {formData.photos.map((p, i) => (
-                    <div key={i} className="relative aspect-square rounded-xl overflow-hidden group">
-                      <img src={p} className="w-full h-full object-cover" />
-                      <button 
-                        onClick={() => setFormData({...formData, photos: formData.photos.filter((_, idx) => idx !== i)})}
-                        className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full"
-                      ><X size={12} /></button>
+                <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-2 mb-3 text-xs font-black uppercase text-slate-400 tracking-widest">
+                        <Camera size={14} className="text-purple-500" /> {t.photosOptional}
                     </div>
-                  ))}
-                  {formData.photos.length < 5 && (
-                    <button 
-                      onClick={simulateUpload}
-                      className="aspect-square border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:border-emerald-500 hover:text-emerald-500 transition-all"
-                    >
-                      <Camera size={24} />
-                      <span className="text-[10px] mt-1 font-bold">{t.addPhoto}</span>
-                    </button>
-                  )}
+                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                        <button 
+                            onClick={simulateUpload}
+                            className="w-16 h-16 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-400 hover:text-emerald-500 hover:border-emerald-500 transition-colors shrink-0"
+                        >
+                            <Plus size={24} />
+                        </button>
+                        {formData.photos.map((p, i) => (
+                            <div key={i} className="w-16 h-16 rounded-xl overflow-hidden shrink-0 relative group">
+                                <img src={p} className="w-full h-full object-cover" />
+                                <button 
+                                    onClick={() => setFormData({...formData, photos: formData.photos.filter((_, idx) => idx !== i)})}
+                                    className="absolute inset-0 bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
                 </div>
-                
-                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex gap-3 text-xs text-blue-700 dark:text-blue-300">
-                  <CheckCircle2 size={16} className="shrink-0" />
-                  <p>{t.photoTip}</p>
+            </div>
+
+            {/* 4. OFFER (High Vis) */}
+            <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2 mb-2 text-xs font-black uppercase text-slate-400 tracking-widest">
+                    <DollarSign size={14} className="text-emerald-500" /> {t.yourOffer}
                 </div>
-              </div>
-            )}
-          </motion.div>
-        </AnimatePresence>
+                <div className="relative">
+                    <Euro className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={24} />
+                    <input 
+                        type="number" 
+                        className="w-full pl-12 pr-4 py-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border-none text-3xl font-black text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none placeholder:text-slate-200"
+                        placeholder="00"
+                        value={formData.suggestedPrice}
+                        onChange={(e) => setFormData({...formData, suggestedPrice: e.target.value})}
+                    />
+                </div>
+                <p className="text-xs text-slate-400 mt-2 text-center">{t.budgetHelp}</p>
+            </div>
+
+        </div>
       </main>
 
-      <footer className="p-6 border-t dark:border-slate-800">
-        <Button 
-          className="w-full py-4 text-lg font-bold" 
-          onClick={step === 3 ? () => onComplete({...formData, suggestedPrice: Number(formData.suggestedPrice) || 0}) : handleNext}
-          disabled={step === 1 && !formData.title}
-        >
-          {step === 3 ? (initialData ? t.saveChanges : t.requestQuotes) : t.next}
-          <ChevronRight className="ml-2 w-5 h-5" />
-        </Button>
+      {/* Footer */}
+      <footer className="p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 fixed bottom-0 left-0 right-0 z-20">
+        <div className="max-w-lg mx-auto">
+            <Button 
+            className="w-full py-4 text-lg font-bold shadow-xl shadow-emerald-500/20" 
+            onClick={() => onComplete({...formData, suggestedPrice: Number(formData.suggestedPrice) || 0})}
+            disabled={!isFormValid}
+            >
+            {initialData ? t.saveChanges : t.requestQuotes}
+            </Button>
+        </div>
       </footer>
     </div>
   );
